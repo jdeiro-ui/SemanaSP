@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>SemanaSP — Despesas de Viagem</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>SemanaSP</h1>
+    <button id="btn-settings" class="icon-btn" aria-label="Configurações">⚙️</button>
+  </header>
+
+  <main>
+    <nav class="week-nav">
+      <button id="prev-week" class="icon-btn" aria-label="Semana anterior">‹</button>
+      <div class="week-label">
+        <strong id="week-title"></strong>
+        <button id="this-week" class="link-btn">Ir para esta semana</button>
+      </div>
+      <button id="next-week" class="icon-btn" aria-label="Próxima semana">›</button>
+    </nav>
+
+    <section class="card summary">
+      <div class="total">
+        <span class="muted">Total da semana</span>
+        <span id="total" class="big"></span>
+      </div>
+      <div id="budget" class="budget"></div>
+      <div class="split">
+        <div><span class="muted">Do meu bolso</span><b id="out-of-pocket"></b></div>
+        <div><span class="muted">A reembolsar</span><b id="reimbursable"></b></div>
+        <div><span class="muted">Corporativo</span><b id="corporate"></b></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Por categoria</h2>
+      <ul id="by-category" class="bars"></ul>
+    </section>
+
+    <section class="card">
+      <h2>Por dia</h2>
+      <div id="by-day" class="days"></div>
+    </section>
+
+    <section class="card">
+      <div class="row-between">
+        <h2>Lançamentos</h2>
+        <button id="export-csv" class="link-btn">Exportar CSV</button>
+      </div>
+      <ul id="expense-list" class="expenses"></ul>
+      <p id="empty" class="muted center">Nenhuma despesa nesta semana.</p>
+    </section>
+  </main>
+
+  <button id="fab" class="fab" aria-label="Adicionar despesa">+</button>
+
+  <dialog id="expense-dialog">
+    <form id="expense-form" method="dialog">
+      <h2 id="form-title">Nova despesa</h2>
+      <label>Valor (R$)
+        <input name="amount" inputmode="decimal" placeholder="0,00" required autocomplete="off">
+      </label>
+      <label>Data
+        <input name="date" type="date" required>
+      </label>
+      <fieldset>
+        <legend>Categoria</legend>
+        <div id="category-picker" class="chips"></div>
+      </fieldset>
+      <label>Descrição
+        <input name="description" placeholder="Ex.: Jantar com cliente" maxlength="120">
+      </label>
+      <label>Cidade
+        <input name="city" list="cities" placeholder="Ex.: São Paulo" maxlength="60">
+        <datalist id="cities"></datalist>
+      </label>
+      <label>Pagamento
+        <select name="payment"></select>
+      </label>
+      <label class="check">
+        <input name="reimbursable" type="checkbox" checked> Reembolsável pela empresa
+      </label>
+      <div class="actions">
+        <button type="button" id="delete-expense" class="danger" hidden>Excluir</button>
+        <span class="spacer"></span>
+        <button type="button" id="cancel-expense">Cancelar</button>
+        <button type="submit" class="primary">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="settings-dialog">
+    <form id="settings-form" method="dialog">
+      <h2>Configurações</h2>
+      <label>Orçamento semanal (R$)
+        <input name="budget" inputmode="decimal" placeholder="Sem limite" autocomplete="off">
+      </label>
+      <h3>Backup</h3>
+      <p class="muted">Os dados ficam salvos apenas neste aparelho. Faça backup de vez em quando.</p>
+      <div class="actions">
+        <button type="button" id="backup-export">Baixar backup</button>
+        <label class="button">Restaurar backup
+          <input id="backup-import" type="file" accept="application/json" hidden>
+        </label>
+      </div>
+      <div class="actions">
+        <span class="spacer"></span>
+        <button type="button" id="cancel-settings">Cancelar</button>
+        <button type="submit" class="primary">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="calc.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

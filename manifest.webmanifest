@@ -1,0 +1,14 @@
+{
+  "name": "SemanaSP — Despesas de Viagem",
+  "short_name": "SemanaSP",
+  "description": "Controle das despesas semanais de viagens a trabalho",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f5fb",
+  "theme_color": "#4f46e5",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
