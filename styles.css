@@ -154,3 +154,11 @@ label.icon-btn { cursor: pointer; display: inline-block; }
 dialog textarea { resize: vertical; }
 .city-other { width: 100%; margin-top: 8px; }
 .tag.refund { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
+.dates { display: flex; gap: 8px; }
+.dates label { flex: 1; min-width: 0; }
+.dates input { width: 100%; }
+.stay-hint { font-size: .85rem; margin: -6px 0 12px; color: var(--primary); }
+.stay-hint.error { color: var(--danger); }
+.expenses .part { font-size: .75rem; color: var(--primary); margin-top: 2px; }
+.expenses .amt { flex-shrink: 0; white-space: nowrap; }
+.expenses .tags { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; margin-top: 2px; }

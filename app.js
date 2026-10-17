@@ -1,5 +1,5 @@
 (function () {
-  const { CATEGORIES, PAYMENTS, CITIES, paymentLabel, toISODate, addDays, weekStart, weekDays, parseDate,
+  const { CATEGORIES, PAYMENTS, CITIES, paymentLabel, nights, weekShare, toISODate, addDays, weekStart, weekDays, parseDate,
     expensesInWeek, parseAmount, formatMoney, summarize, toCSV } = Calc;
 
   const STORAGE_KEY = 'semanasp:v1';
@@ -37,7 +37,7 @@
     $('#this-week').hidden = currentWeek === weekStart(today());
 
     const items = expensesInWeek(state.expenses, currentWeek);
-    const s = summarize(items, state.budget);
+    const s = summarize(items, state.budget, currentWeek);
 
     $('#total').textContent = formatMoney(s.total);
     $('#reimbursable').textContent = formatMoney(s.reimbursable);
@@ -98,16 +98,23 @@
     $('#export-csv').hidden = items.length === 0;
     $('#expense-list').innerHTML = items.slice().reverse().map((e) => {
       const c = CATEGORIES.find((x) => x.id === e.category) || CATEGORIES[CATEGORIES.length - 1];
-      const tags = `<span class="tag">${escapeHtml(paymentLabel(e.payment))}</span>`
-        + (e.reimbursable ? ' <span class="tag refund">reembolsável</span>' : '');
+      const n = nights(e);
+      const share = weekShare(e, currentWeek);
+      const when = n
+        ? `${fmtShort(e.date)} → ${fmtShort(e.checkout)} · ${n} ${n === 1 ? 'noite' : 'noites'}`
+        : `${weekdayShort(e.date)}, ${fmtShort(e.date)}`;
+      const partial = share.amount !== e.amount
+        ? `<div class="part">${share.nights} de ${n} noites nesta semana · total ${formatMoney(e.amount)}</div>` : '';
+      const tags = `<span class="tags"><span class="tag">${escapeHtml(paymentLabel(e.payment))}</span>`
+        + (e.reimbursable ? '<span class="tag refund">reembolsável</span>' : '') + '</span>';
       return `
         <li data-id="${e.id}">
           <span class="ico">${c.icon}</span>
           <div class="info">
             <div class="desc">${escapeHtml(e.description || c.label)}</div>
-            <div class="muted">${weekdayShort(e.date)}, ${fmtShort(e.date)}${e.city ? ' · ' + escapeHtml(e.city) : ''}</div>
+            <div class="muted">${when}${e.city ? ' · ' + escapeHtml(e.city) : ''}</div>${partial}
           </div>
-          <div class="amt">${formatMoney(e.amount)}<br>${tags}</div>
+          <div class="amt">${formatMoney(share.amount)}${tags}</div>
         </li>`;
     }).join('');
   }
@@ -139,11 +146,13 @@
     form.amount.value = src.amount ? (src.amount / 100).toFixed(2).replace('.', ',') : '';
     form.date.value = src.date || (thisWeek ? today() : currentWeek);
     form.description.value = src.description || '';
+    form.checkout.value = src.checkout || '';
     const lastPayment = last && PAYMENTS.some((p) => p.id === last.payment) ? last.payment : PAYMENTS[0].id;
     form.payment.value = expense && PAYMENTS.some((p) => p.id === expense.payment) ? expense.payment : lastPayment;
     form.reimbursable.checked = expense ? expense.reimbursable : false;
     selectedCategory = src.category || CATEGORIES[0].id;
     renderCategoryPicker();
+    syncStay();
 
     const otherCities = [...new Set(state.expenses.map((e) => e.city))].filter((c) => c && !CITIES.includes(c));
     $('#cities').innerHTML = otherCities.map((c) => `<option value="${escapeHtml(c)}">`).join('');
@@ -181,7 +190,35 @@
     if (!btn) return;
     selectedCategory = btn.dataset.cat;
     renderCategoryPicker();
+    syncStay();
   });
+
+  // Hospedagem: "Data" vira check-in, aparece o check-out e o valor por noite.
+  function syncStay() {
+    const isStay = selectedCategory === 'hospedagem';
+    $('#date-label').textContent = isStay ? 'Check-in' : 'Data';
+    $('#checkout-field').hidden = !isStay;
+    form.checkout.required = isStay;
+    form.checkout.setCustomValidity('');
+    $('#stay-hint').hidden = !isStay;
+    if (!isStay) return;
+    if (!form.checkout.value && form.date.value) form.checkout.value = addDays(form.date.value, 1);
+    const n = nights({ date: form.date.value, checkout: form.checkout.value });
+    const amount = parseAmount(form.amount.value);
+    const hint = $('#stay-hint');
+    hint.classList.toggle('error', !n);
+    if (!n) hint.textContent = 'O check-out precisa ser depois do check-in.';
+    else hint.textContent = `${n} ${n === 1 ? 'noite' : 'noites'}`
+      + (amount > 0 && n > 1 ? ` · ${formatMoney(Math.round(amount / n))} por noite` : '');
+  }
+
+  form.date.addEventListener('change', () => {
+    // Check-in movido para depois do check-out: empurra o check-out para o dia seguinte.
+    if (form.checkout.value && form.checkout.value <= form.date.value) form.checkout.value = addDays(form.date.value, 1);
+    syncStay();
+  });
+  form.checkout.addEventListener('change', syncStay);
+  form.amount.addEventListener('input', syncStay);
 
   form.addEventListener('submit', (ev) => {
     const amount = parseAmount(form.amount.value);
@@ -191,8 +228,16 @@
       form.amount.reportValidity();
       return;
     }
+    const isStay = selectedCategory === 'hospedagem';
+    if (isStay && !nights({ date: form.date.value, checkout: form.checkout.value })) {
+      ev.preventDefault();
+      form.checkout.setCustomValidity('O check-out precisa ser depois do check-in');
+      form.checkout.reportValidity();
+      return;
+    }
     const data = {
       amount,
+      checkout: isStay ? form.checkout.value : null,
       date: form.date.value,
       category: selectedCategory,
       description: form.description.value.trim(),
@@ -211,6 +256,7 @@
     render();
   });
   form.amount.addEventListener('input', () => form.amount.setCustomValidity(''));
+  form.checkout.addEventListener('input', () => form.checkout.setCustomValidity(''));
 
   $('#delete-expense').addEventListener('click', () => {
     if (!confirm('Excluir esta despesa?')) return;
@@ -244,7 +290,7 @@
 
   $('#export-csv').addEventListener('click', () => {
     const items = expensesInWeek(state.expenses, currentWeek);
-    download(`despesas_${currentWeek}.csv`, toCSV(items), 'text/csv;charset=utf-8');
+    download(`despesas_${currentWeek}.csv`, toCSV(items, currentWeek), 'text/csv;charset=utf-8');
   });
 
   // ---------- Configurações ----------

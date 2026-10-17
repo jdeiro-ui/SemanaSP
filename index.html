@@ -78,9 +78,15 @@
       <label>Valor (R$)
         <input name="amount" inputmode="decimal" placeholder="0,00" required autocomplete="off">
       </label>
-      <label>Data
-        <input name="date" type="date" required>
-      </label>
+      <div class="dates">
+        <label><span id="date-label">Data</span>
+          <input name="date" type="date" required>
+        </label>
+        <label id="checkout-field" hidden>Check-out
+          <input name="checkout" type="date">
+        </label>
+      </div>
+      <p id="stay-hint" class="stay-hint" hidden></p>
       <fieldset>
         <legend>Categoria</legend>
         <div id="category-picker" class="chips"></div>

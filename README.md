@@ -11,6 +11,8 @@ celular e no computador, pode ser instalado na tela inicial (PWA) e funciona off
   Keeta (ou use o botão 📷) e a despesa é preenchida sozinha — trajeto da corrida,
   restaurante do pedido, valor e data. A leitura (OCR) roda no próprio aparelho
 - **Categorias**: hospedagem, alimentação, transporte, combustível, passagem, outros
+- **Hospedagem com check-in e check-out**: o valor é distribuído por noite, e uma
+  estadia que atravessa semanas entra em cada semana só com as suas noites
 - **Formas de pagamento**: Nubank, Unlimited, Ticket e Pix/dinheiro, com total por forma
 - **Reembolso**: marque o que a empresa deve reembolsar e veja o total a receber
 - **Local**: Rio de Janeiro e São Paulo com um toque, ou digite outro

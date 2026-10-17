@@ -56,10 +56,42 @@
     return Array.from({ length: 7 }, (_, i) => addDays(startIso, i));
   }
 
+  function daysBetween(fromIso, toIso) {
+    const [a, b] = [fromIso, toIso].map((iso) => {
+      const [y, m, d] = iso.split('-').map(Number);
+      return Date.UTC(y, m - 1, d);
+    });
+    return Math.round((b - a) / 86400000);
+  }
+
+  // Número de noites de uma hospedagem (0 se não tiver check-out válido).
+  function nights(e) {
+    return e.checkout && e.checkout > e.date ? daysBetween(e.date, e.checkout) : 0;
+  }
+
+  // Distribui o valor pelos dias: hospedagem vira uma parcela por noite
+  // (os centavos que sobram vão para as primeiras noites); o resto fica num dia só.
+  function allocate(e) {
+    const n = nights(e);
+    if (!n) return [{ date: e.date, amount: e.amount }];
+    const base = Math.floor(e.amount / n);
+    const extra = e.amount - base * n;
+    return Array.from({ length: n }, (_, i) => ({ date: addDays(e.date, i), amount: base + (i < extra ? 1 : 0) }));
+  }
+
+  function inRange(date, startIso) {
+    return !startIso || (date >= startIso && date <= addDays(startIso, 6));
+  }
+
+  // Parte da despesa que cai na semana: { amount, nights } (nights só para hospedagem).
+  function weekShare(e, startIso) {
+    const parts = allocate(e).filter((a) => inRange(a.date, startIso));
+    return { amount: parts.reduce((sum, a) => sum + a.amount, 0), nights: nights(e) ? parts.length : 0 };
+  }
+
   function expensesInWeek(expenses, startIso) {
-    const end = addDays(startIso, 6);
     return expenses
-      .filter((e) => e.date >= startIso && e.date <= end)
+      .filter((e) => allocate(e).some((a) => inRange(a.date, startIso)))
       .sort((a, b) => (a.date === b.date ? a.createdAt - b.createdAt : a.date < b.date ? -1 : 1));
   }
 
@@ -78,18 +110,22 @@
     return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
 
-  function summarize(expenses, budgetCents) {
+  // Com `startIso`, conta só a parte de cada despesa que cai naquela semana.
+  function summarize(expenses, budgetCents, startIso = null) {
     const byCategory = Object.fromEntries(CATEGORIES.map((c) => [c.id, 0]));
     const byPayment = {};
     const byDay = {};
     let total = 0;
     let reimbursable = 0;
     for (const e of expenses) {
-      total += e.amount;
-      byCategory[e.category] = (byCategory[e.category] || 0) + e.amount;
-      byPayment[e.payment] = (byPayment[e.payment] || 0) + e.amount;
-      byDay[e.date] = (byDay[e.date] || 0) + e.amount;
-      if (e.reimbursable) reimbursable += e.amount;
+      for (const a of allocate(e)) {
+        if (!inRange(a.date, startIso)) continue;
+        total += a.amount;
+        byCategory[e.category] = (byCategory[e.category] || 0) + a.amount;
+        byPayment[e.payment] = (byPayment[e.payment] || 0) + a.amount;
+        byDay[a.date] = (byDay[a.date] || 0) + a.amount;
+        if (e.reimbursable) reimbursable += a.amount;
+      }
     }
     return {
       total,
@@ -108,28 +144,35 @@
     return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   }
 
+  const brDate = (iso) => iso.split('-').reverse().join('/');
+  const brMoney = (cents) => (cents / 100).toFixed(2).replace('.', ',');
+
   // CSV com ';' e vírgula decimal, que abre direto no Excel em português.
-  function toCSV(expenses) {
-    const header = ['Data', 'Categoria', 'Descrição', 'Cidade', 'Pagamento', 'Reembolsável', 'Valor'];
+  // Com `startIso`, "Valor" é a parte da semana e "Valor total" o valor cheio.
+  function toCSV(expenses, startIso = null) {
+    const header = ['Data', 'Check-out', 'Noites', 'Categoria', 'Descrição', 'Cidade', 'Pagamento', 'Reembolsável', 'Valor', 'Valor total'];
     const rows = expenses.map((e) => {
-      const [y, m, d] = e.date.split('-');
       const cat = CATEGORIES.find((c) => c.id === e.category);
+      const share = weekShare(e, startIso);
       return [
-        `${d}/${m}/${y}`,
+        brDate(e.date),
+        nights(e) ? brDate(e.checkout) : '',
+        nights(e) ? (share.nights === nights(e) ? share.nights : `${share.nights} de ${nights(e)}`) : '',
         cat ? cat.label : e.category,
         e.description,
         e.city,
         paymentLabel(e.payment),
         e.reimbursable ? 'Sim' : 'Não',
-        (e.amount / 100).toFixed(2).replace('.', ','),
+        brMoney(share.amount),
+        brMoney(e.amount),
       ].map(csvCell).join(';');
     });
-    return '﻿' + [header.join(';'), ...rows].join('\r\n');
+    return '\ufeff' + [header.join(';'), ...rows].join('\r\n');
   }
 
   const api = {
     CATEGORIES, PAYMENTS, CITIES, paymentLabel, parseDate, toISODate, addDays, weekStart, weekDays,
-    expensesInWeek, parseAmount, formatMoney, summarize, toCSV,
+    nights, allocate, weekShare, expensesInWeek, parseAmount, formatMoney, summarize, toCSV,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
