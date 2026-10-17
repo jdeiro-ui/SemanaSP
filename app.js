@@ -2,6 +2,7 @@
   const { CATEGORIES, PAYMENTS, CITIES, paymentLabel, nights, weekShare, toISODate, addDays, weekStart, weekDays, parseDate,
     expensesInWeek, parseAmount, formatMoney, summarize, toCSV } = Calc;
 
+  const APP_VERSION = '2026.10.17-5';
   const STORAGE_KEY = 'semanasp:v1';
   const $ = (sel) => document.querySelector(sel);
 
@@ -396,8 +397,18 @@
     scanImage(await res.blob());
   }
 
+  $('#app-version').textContent = APP_VERSION;
+
   // ---------- Offline ----------
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    // Quando uma versão nova do service worker assume, recarrega uma vez para usá-la.
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController || reloaded || dialog.open || settingsDialog.open) return;
+      reloaded = true;
+      location.reload();
+    });
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 

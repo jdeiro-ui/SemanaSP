@@ -1,5 +1,5 @@
 // Cache simples para o app funcionar offline. Mude a versão ao alterar arquivos.
-const CACHE = 'semanasp-v4';
+const CACHE = 'semanasp-v5';
 const SHARE_CACHE = 'semanasp-share';
 const ASSETS = ['./', 'index.html', 'styles.css', 'calc.js', 'receipt.js', 'app.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png'];
 
@@ -36,8 +36,11 @@ self.addEventListener('fetch', (event) => {
   }
   if (event.request.method !== 'GET') return;
   // Rede primeiro, cache como reserva: atualizações aparecem quando há conexão.
+  // 'no-cache' faz o navegador revalidar com o servidor em vez de usar a cópia
+  // HTTP (o GitHub Pages permite reaproveitar por 10 min, o que atrasava as atualizações).
+  const sameOrigin = url.origin === self.location.origin;
   event.respondWith(
-    fetch(event.request)
+    fetch(sameOrigin ? new Request(url.href, { cache: 'no-cache', credentials: 'same-origin' }) : event.request)
       .then((res) => {
         if (res.ok || res.type === 'opaque') {
           const copy = res.clone();
