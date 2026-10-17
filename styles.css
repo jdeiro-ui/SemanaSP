@@ -86,7 +86,7 @@ button.danger { color: var(--danger); border-color: var(--danger); }
 .budget .fill { height: 100%; background: var(--ok); }
 .budget.over .fill { background: var(--danger); }
 .budget.over { color: var(--danger); }
-.split { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.split { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .split div { display: flex; flex-direction: column; }
 .split b { font-size: .95rem; }
 
@@ -152,3 +152,5 @@ label.icon-btn { cursor: pointer; display: inline-block; }
 .spinner { width: 36px; height: 36px; margin: 0 auto; border: 4px solid var(--line); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 dialog textarea { resize: vertical; }
+.city-other { width: 100%; margin-top: 8px; }
+.tag.refund { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }

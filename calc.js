@@ -10,9 +10,21 @@
   ];
 
   const PAYMENTS = [
-    { id: 'pessoal', label: 'Cartão/dinheiro pessoal' },
-    { id: 'corporativo', label: 'Cartão corporativo' },
+    { id: 'nubank', label: 'Nubank', color: '#8a05be' },
+    { id: 'unlimited', label: 'Unlimited', color: '#0ea5e9' },
+    { id: 'ticket', label: 'Ticket', color: '#e11d48' },
+    { id: 'pix', label: 'Pix/dinheiro', color: '#10b981' },
   ];
+
+  // Formas de pagamento de versões anteriores do app, só para exibição.
+  const LEGACY_PAYMENTS = { pessoal: 'Pessoal', corporativo: 'Corporativo' };
+
+  const CITIES = ['Rio de Janeiro', 'São Paulo'];
+
+  function paymentLabel(id) {
+    const p = PAYMENTS.find((x) => x.id === id);
+    return p ? p.label : LEGACY_PAYMENTS[id] || id || '';
+  }
 
   const pad = (n) => String(n).padStart(2, '0');
 
@@ -68,25 +80,25 @@
 
   function summarize(expenses, budgetCents) {
     const byCategory = Object.fromEntries(CATEGORIES.map((c) => [c.id, 0]));
+    const byPayment = {};
     const byDay = {};
     let total = 0;
     let reimbursable = 0;
-    let corporate = 0;
     for (const e of expenses) {
       total += e.amount;
       byCategory[e.category] = (byCategory[e.category] || 0) + e.amount;
+      byPayment[e.payment] = (byPayment[e.payment] || 0) + e.amount;
       byDay[e.date] = (byDay[e.date] || 0) + e.amount;
-      if (e.payment === 'corporativo') corporate += e.amount;
-      else if (e.reimbursable) reimbursable += e.amount;
+      if (e.reimbursable) reimbursable += e.amount;
     }
     return {
       total,
       count: expenses.length,
       byCategory,
+      byPayment,
       byDay,
       reimbursable,
-      corporate,
-      outOfPocket: total - corporate - reimbursable,
+      notReimbursable: total - reimbursable,
       remaining: budgetCents > 0 ? budgetCents - total : null,
     };
   }
@@ -102,13 +114,12 @@
     const rows = expenses.map((e) => {
       const [y, m, d] = e.date.split('-');
       const cat = CATEGORIES.find((c) => c.id === e.category);
-      const pay = PAYMENTS.find((p) => p.id === e.payment);
       return [
         `${d}/${m}/${y}`,
         cat ? cat.label : e.category,
         e.description,
         e.city,
-        pay ? pay.label : e.payment,
+        paymentLabel(e.payment),
         e.reimbursable ? 'Sim' : 'Não',
         (e.amount / 100).toFixed(2).replace('.', ','),
       ].map(csvCell).join(';');
@@ -117,7 +128,7 @@
   }
 
   const api = {
-    CATEGORIES, PAYMENTS, parseDate, toISODate, addDays, weekStart, weekDays,
+    CATEGORIES, PAYMENTS, CITIES, paymentLabel, parseDate, toISODate, addDays, weekStart, weekDays,
     expensesInWeek, parseAmount, formatMoney, summarize, toCSV,
   };
 

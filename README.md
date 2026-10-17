@@ -11,8 +11,9 @@ celular e no computador, pode ser instalado na tela inicial (PWA) e funciona off
   Keeta (ou use o botão 📷) e a despesa é preenchida sozinha — trajeto da corrida,
   restaurante do pedido, valor e data. A leitura (OCR) roda no próprio aparelho
 - **Categorias**: hospedagem, alimentação, transporte, combustível, passagem, outros
-- **Separação do dinheiro**: o que saiu do seu bolso, o que a empresa deve reembolsar
-  e o que foi pago no cartão corporativo
+- **Formas de pagamento**: Nubank, Unlimited, Ticket e Pix/dinheiro, com total por forma
+- **Reembolso**: marque o que a empresa deve reembolsar e veja o total a receber
+- **Local**: Rio de Janeiro e São Paulo com um toque, ou digite outro
 - **Orçamento semanal** opcional, com alerta quando é ultrapassado
 - **Gráficos** por categoria e por dia da semana
 - **Exportar CSV** da semana (abre direto no Excel) para a prestação de contas

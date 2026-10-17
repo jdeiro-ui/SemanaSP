@@ -26,10 +26,10 @@ test('parseAmount entende formatos brasileiros', () => {
 });
 
 const sample = [
-  { id: '1', createdAt: 1, date: '2026-10-13', category: 'hospedagem', amount: 30000, payment: 'corporativo', reimbursable: false, description: 'Hotel', city: 'São Paulo' },
-  { id: '2', createdAt: 2, date: '2026-10-13', category: 'alimentacao', amount: 4550, payment: 'pessoal', reimbursable: true, description: 'Jantar; cliente', city: 'São Paulo' },
-  { id: '3', createdAt: 3, date: '2026-10-14', category: 'transporte', amount: 2000, payment: 'pessoal', reimbursable: false, description: 'Uber', city: '' },
-  { id: '4', createdAt: 4, date: '2026-10-19', category: 'outros', amount: 999, payment: 'pessoal', reimbursable: true, description: 'Semana seguinte', city: '' },
+  { id: '1', createdAt: 1, date: '2026-10-13', category: 'hospedagem', amount: 30000, payment: 'nubank', reimbursable: true, description: 'Hotel', city: 'São Paulo' },
+  { id: '2', createdAt: 2, date: '2026-10-13', category: 'alimentacao', amount: 4550, payment: 'ticket', reimbursable: false, description: 'Jantar; cliente', city: 'São Paulo' },
+  { id: '3', createdAt: 3, date: '2026-10-14', category: 'transporte', amount: 2000, payment: 'nubank', reimbursable: false, description: 'Uber', city: '' },
+  { id: '4', createdAt: 4, date: '2026-10-19', category: 'outros', amount: 999, payment: 'pix', reimbursable: true, description: 'Semana seguinte', city: '' },
 ];
 
 test('expensesInWeek filtra pela semana', () => {
@@ -37,12 +37,12 @@ test('expensesInWeek filtra pela semana', () => {
   assert.deepEqual(Calc.expensesInWeek(sample, '2026-10-19').map((e) => e.id), ['4']);
 });
 
-test('summarize separa corporativo, reembolsável e bolso', () => {
+test('summarize separa reembolsável e soma por forma de pagamento', () => {
   const s = Calc.summarize(Calc.expensesInWeek(sample, '2026-10-12'), 50000);
   assert.equal(s.total, 36550);
-  assert.equal(s.corporate, 30000);
-  assert.equal(s.reimbursable, 4550);
-  assert.equal(s.outOfPocket, 2000);
+  assert.equal(s.reimbursable, 30000);
+  assert.equal(s.notReimbursable, 6550);
+  assert.deepEqual(s.byPayment, { nubank: 32000, ticket: 4550 });
   assert.equal(s.byCategory.hospedagem, 30000);
   assert.equal(s.byDay['2026-10-13'], 34550);
   assert.equal(s.remaining, 13450);
@@ -53,5 +53,10 @@ test('toCSV usa ; e vírgula decimal, escapando campos', () => {
   const csv = Calc.toCSV(sample.slice(1, 2));
   const lines = csv.replace('﻿', '').split('\r\n');
   assert.equal(lines[0], 'Data;Categoria;Descrição;Cidade;Pagamento;Reembolsável;Valor');
-  assert.equal(lines[1], '13/10/2026;Alimentação;"Jantar; cliente";São Paulo;Cartão/dinheiro pessoal;Sim;45,50');
+  assert.equal(lines[1], '13/10/2026;Alimentação;"Jantar; cliente";São Paulo;Ticket;Não;45,50');
+});
+
+test('paymentLabel cobre formas antigas', () => {
+  assert.equal(Calc.paymentLabel('pix'), 'Pix/dinheiro');
+  assert.equal(Calc.paymentLabel('corporativo'), 'Corporativo');
 });

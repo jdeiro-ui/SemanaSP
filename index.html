@@ -39,15 +39,19 @@
       </div>
       <div id="budget" class="budget"></div>
       <div class="split">
-        <div><span class="muted">Do meu bolso</span><b id="out-of-pocket"></b></div>
         <div><span class="muted">A reembolsar</span><b id="reimbursable"></b></div>
-        <div><span class="muted">Corporativo</span><b id="corporate"></b></div>
+        <div><span class="muted">Sem reembolso</span><b id="not-reimbursable"></b></div>
       </div>
     </section>
 
     <section class="card">
       <h2>Por categoria</h2>
       <ul id="by-category" class="bars"></ul>
+    </section>
+
+    <section class="card">
+      <h2>Por forma de pagamento</h2>
+      <ul id="by-payment" class="bars"></ul>
     </section>
 
     <section class="card">
@@ -84,15 +88,17 @@
       <label>Descrição
         <textarea name="description" rows="2" placeholder="Ex.: Jantar com cliente" maxlength="160"></textarea>
       </label>
-      <label>Cidade
-        <input name="city" list="cities" placeholder="Ex.: São Paulo" maxlength="60">
+      <fieldset>
+        <legend>Local</legend>
+        <div id="city-picker" class="chips"></div>
+        <input name="city" list="cities" placeholder="Digite o local" maxlength="60" class="city-other" hidden>
         <datalist id="cities"></datalist>
-      </label>
+      </fieldset>
       <label>Pagamento
         <select name="payment"></select>
       </label>
       <label class="check">
-        <input name="reimbursable" type="checkbox" checked> Reembolsável pela empresa
+        <input name="reimbursable" type="checkbox"> Reembolsável pela empresa
       </label>
       <div class="actions">
         <button type="button" id="delete-expense" class="danger" hidden>Excluir</button>

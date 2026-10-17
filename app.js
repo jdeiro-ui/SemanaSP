@@ -1,5 +1,5 @@
 (function () {
-  const { CATEGORIES, PAYMENTS, toISODate, addDays, weekStart, weekDays, parseDate,
+  const { CATEGORIES, PAYMENTS, CITIES, paymentLabel, toISODate, addDays, weekStart, weekDays, parseDate,
     expensesInWeek, parseAmount, formatMoney, summarize, toCSV } = Calc;
 
   const STORAGE_KEY = 'semanasp:v1';
@@ -40,9 +40,8 @@
     const s = summarize(items, state.budget);
 
     $('#total').textContent = formatMoney(s.total);
-    $('#out-of-pocket').textContent = formatMoney(s.outOfPocket);
     $('#reimbursable').textContent = formatMoney(s.reimbursable);
-    $('#corporate').textContent = formatMoney(s.corporate);
+    $('#not-reimbursable').textContent = formatMoney(s.notReimbursable);
 
     const budgetEl = $('#budget');
     if (state.budget > 0) {
@@ -68,6 +67,21 @@
           <div class="track"><div class="fill" style="width:${(s.byCategory[c.id] / maxCat) * 100}%;background:${c.color}"></div></div>
         </li>`).join('') || '<li class="muted">Sem gastos.</li>';
 
+    const maxPay = Math.max(1, ...Object.values(s.byPayment));
+    const knownPay = PAYMENTS.map((p) => p.id);
+    const payIds = [...knownPay, ...Object.keys(s.byPayment).filter((id) => !knownPay.includes(id))];
+    $('#by-payment').innerHTML = payIds
+      .filter((id) => s.byPayment[id] > 0)
+      .sort((a, b) => s.byPayment[b] - s.byPayment[a])
+      .map((id) => {
+        const p = PAYMENTS.find((x) => x.id === id);
+        return `
+        <li>
+          <div class="label"><span>${escapeHtml(paymentLabel(id))}</span><b>${formatMoney(s.byPayment[id])}</b></div>
+          <div class="track"><div class="fill" style="width:${(s.byPayment[id] / maxPay) * 100}%;background:${p ? p.color : '#64748b'}"></div></div>
+        </li>`;
+      }).join('') || '<li class="muted">Sem gastos.</li>';
+
     const days = weekDays(currentWeek);
     const maxDay = Math.max(1, ...days.map((d) => s.byDay[d] || 0));
     $('#by-day').innerHTML = days.map((d) => {
@@ -84,7 +98,8 @@
     $('#export-csv').hidden = items.length === 0;
     $('#expense-list').innerHTML = items.slice().reverse().map((e) => {
       const c = CATEGORIES.find((x) => x.id === e.category) || CATEGORIES[CATEGORIES.length - 1];
-      const tag = e.payment === 'corporativo' ? 'corporativo' : e.reimbursable ? 'reembolsável' : 'pessoal';
+      const tags = `<span class="tag">${escapeHtml(paymentLabel(e.payment))}</span>`
+        + (e.reimbursable ? ' <span class="tag refund">reembolsável</span>' : '');
       return `
         <li data-id="${e.id}">
           <span class="ico">${c.icon}</span>
@@ -92,7 +107,7 @@
             <div class="desc">${escapeHtml(e.description || c.label)}</div>
             <div class="muted">${weekdayShort(e.date)}, ${fmtShort(e.date)}${e.city ? ' · ' + escapeHtml(e.city) : ''}</div>
           </div>
-          <div class="amt">${formatMoney(e.amount)}<br><span class="tag">${tag}</span></div>
+          <div class="amt">${formatMoney(e.amount)}<br>${tags}</div>
         </li>`;
     }).join('');
   }
@@ -124,31 +139,42 @@
     form.amount.value = src.amount ? (src.amount / 100).toFixed(2).replace('.', ',') : '';
     form.date.value = src.date || (thisWeek ? today() : currentWeek);
     form.description.value = src.description || '';
-    form.city.value = expense ? expense.city : src.city || (last ? last.city : '');
-    form.payment.value = expense ? expense.payment : (last ? last.payment : PAYMENTS[0].id);
-    form.reimbursable.checked = expense ? expense.reimbursable : true;
-    form.reimbursable.disabled = false;
+    const lastPayment = last && PAYMENTS.some((p) => p.id === last.payment) ? last.payment : PAYMENTS[0].id;
+    form.payment.value = expense && PAYMENTS.some((p) => p.id === expense.payment) ? expense.payment : lastPayment;
+    form.reimbursable.checked = expense ? expense.reimbursable : false;
     selectedCategory = src.category || CATEGORIES[0].id;
     renderCategoryPicker();
-    syncReimbursable();
 
-    const cities = [...new Set(state.expenses.map((e) => e.city).filter(Boolean))];
-    $('#cities').innerHTML = cities.map((c) => `<option value="${escapeHtml(c)}">`).join('');
+    const otherCities = [...new Set(state.expenses.map((e) => e.city))].filter((c) => c && !CITIES.includes(c));
+    $('#cities').innerHTML = otherCities.map((c) => `<option value="${escapeHtml(c)}">`).join('');
+    setCity(expense ? expense.city : src.city || (last ? last.city : CITIES[0]));
 
     dialog.showModal();
     if (!expense && !draft) form.amount.focus();
   }
 
-  // Gasto no cartão corporativo não precisa de reembolso.
-  function syncReimbursable() {
-    const corporate = form.payment.value === 'corporativo';
-    if (corporate) form.reimbursable.checked = false;
-    else if (form.reimbursable.disabled) form.reimbursable.checked = true;
-    form.reimbursable.disabled = corporate;
+  form.payment.innerHTML = PAYMENTS.map((p) => `<option value="${p.id}">${p.label}</option>`).join('');
+
+  // Local: atalhos para as cidades fixas ou "Outro", que abre o campo para digitar.
+  let cityIsOther = false;
+
+  function setCity(city, other = !!city && !CITIES.includes(city)) {
+    cityIsOther = other;
+    form.city.value = city || '';
+    form.city.hidden = !other;
+    $('#city-picker').innerHTML = [...CITIES, 'Outro'].map((c) => {
+      const pressed = c === 'Outro' ? other : !other && c === city;
+      return `<button type="button" data-city="${c}" aria-pressed="${pressed}">${c === 'Outro' ? '✏️ Outro' : '📍 ' + c}</button>`;
+    }).join('');
   }
 
-  form.payment.innerHTML = PAYMENTS.map((p) => `<option value="${p.id}">${p.label}</option>`).join('');
-  form.payment.addEventListener('change', syncReimbursable);
+  $('#city-picker').addEventListener('click', (ev) => {
+    const btn = ev.target.closest('[data-city]');
+    if (!btn) return;
+    if (btn.dataset.city !== 'Outro') return setCity(btn.dataset.city);
+    setCity(cityIsOther ? form.city.value : '', true);
+    form.city.focus();
+  });
 
   $('#category-picker').addEventListener('click', (ev) => {
     const btn = ev.target.closest('[data-cat]');
@@ -172,7 +198,7 @@
       description: form.description.value.trim(),
       city: form.city.value.trim(),
       payment: form.payment.value,
-      reimbursable: form.payment.value !== 'corporativo' && form.reimbursable.checked,
+      reimbursable: form.reimbursable.checked,
     };
     if (editingId) {
       Object.assign(state.expenses.find((e) => e.id === editingId), data);
