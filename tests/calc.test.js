@@ -52,8 +52,8 @@ test('summarize separa reembolsável e soma por forma de pagamento', () => {
 test('toCSV usa ; e vírgula decimal, escapando campos', () => {
   const csv = Calc.toCSV(sample.slice(1, 2));
   const lines = csv.replace('﻿', '').split('\r\n');
-  assert.equal(lines[0], 'Data;Check-out;Noites;Categoria;Descrição;Cidade;Pagamento;Reembolsável;Valor;Valor total');
-  assert.equal(lines[1], '13/10/2026;;;Alimentação;"Jantar; cliente";São Paulo;Ticket;Não;45,50;45,50');
+  assert.equal(lines[0], 'Data;Check-out/Volta;Noites;Categoria;Descrição;Cidade;Pagamento;Parcelas;Reembolsável;Data da compra;Companhia aérea;Localizador;Valor;Valor total');
+  assert.equal(lines[1], '13/10/2026;;;Alimentação;"Jantar; cliente";São Paulo;Ticket;;Não;;;;45,50;45,50');
 });
 
 test('paymentLabel cobre formas antigas', () => {
@@ -88,12 +88,41 @@ test('hospedagem que atravessa semanas entra em cada semana só com suas noites'
   assert.equal(s.byDay['2026-10-11'], undefined);
   assert.equal(s.byDay['2026-10-12'], 10000);
   assert.equal(s.byDay['2026-10-17'], 33333);
-  assert.deepEqual(Calc.weekShare(late, '2026-10-12'), { amount: 10000, nights: 1 });
-  assert.deepEqual(Calc.weekShare(late, '2026-10-05'), { amount: 10000, nights: 1 });
+  assert.deepEqual(Calc.weekShare(late, '2026-10-12'), { amount: 10000, nights: 1, legs: 0 });
+  assert.deepEqual(Calc.weekShare(late, '2026-10-05'), { amount: 10000, nights: 1, legs: 0 });
 });
 
 test('toCSV de hospedagem traz check-out, noites da semana e valor parcial', () => {
   const late = { ...stay, date: '2026-10-11', checkout: '2026-10-13', amount: 20000, description: 'Hotel SP', city: 'São Paulo' };
   const row = Calc.toCSV([late], '2026-10-12').replace('\ufeff', '').split('\r\n')[1];
-  assert.equal(row, '11/10/2026;13/10/2026;1 de 2;Hospedagem;Hotel SP;São Paulo;Nubank;Sim;100,00;200,00');
+  assert.equal(row, '11/10/2026;13/10/2026;1 de 2;Hospedagem;Hotel SP;São Paulo;Nubank;;Sim;;;;100,00;200,00');
+});
+
+// Passagem comprada em 01/09 para ida dom 18/10 e volta sex 23/10 (trechos em semanas diferentes).
+const flight = { id: 'f', createdAt: 10, category: 'passagem', date: '2026-10-18', returnDate: '2026-10-23',
+  purchaseDate: '2026-09-01', airline: 'LATAM', locator: 'XPTO12', amount: 120001, payment: 'nubank',
+  installments: 3, reimbursable: true, description: '', city: 'São Paulo' };
+
+test('passagem conta na semana da viagem, metade na ida e metade na volta', () => {
+  assert.deepEqual(Calc.allocate(flight), [{ date: '2026-10-18', amount: 60001 }, { date: '2026-10-23', amount: 60000 }]);
+  assert.deepEqual(Calc.expensesInWeek([flight], '2026-08-31').map((e) => e.id), []); // semana da compra
+  assert.deepEqual(Calc.weekShare(flight, '2026-10-12'), { amount: 60001, nights: 0, legs: 1 });
+  assert.deepEqual(Calc.weekShare(flight, '2026-10-19'), { amount: 60000, nights: 0, legs: 1 });
+  // Só ida, ou volta no mesmo dia: tudo na data da ida.
+  assert.deepEqual(Calc.allocate({ ...flight, returnDate: '' }), [{ date: '2026-10-18', amount: 120001 }]);
+  assert.deepEqual(Calc.allocate({ ...flight, returnDate: '2026-10-18' }), [{ date: '2026-10-18', amount: 120001 }]);
+  // Check-out só vale para hospedagem.
+  assert.equal(Calc.nights({ ...flight, checkout: '2026-10-20' }), 0);
+});
+
+test('parcelas só valem para Nubank e Unlimited', () => {
+  assert.equal(Calc.installmentsOf(flight), 3);
+  assert.equal(Calc.installmentsOf({ ...flight, payment: 'unlimited' }), 3);
+  assert.equal(Calc.installmentsOf({ ...flight, payment: 'pix' }), 1);
+  assert.equal(Calc.installmentsOf({ ...flight, installments: null }), 1);
+});
+
+test('toCSV de passagem traz volta, compra, companhia, localizador e parcelas', () => {
+  const row = Calc.toCSV([flight], '2026-10-19').replace('\ufeff', '').split('\r\n')[1];
+  assert.equal(row, '18/10/2026;23/10/2026;;Passagem;;São Paulo;Nubank;3x;Sim;01/09/2026;LATAM;XPTO12;600,00;1200,01');
 });

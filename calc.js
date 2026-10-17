@@ -20,6 +20,15 @@
   const LEGACY_PAYMENTS = { pessoal: 'Pessoal', corporativo: 'Corporativo' };
 
   const CITIES = ['Rio de Janeiro', 'São Paulo'];
+  const AIRLINES = ['LATAM', 'GOL', 'Azul'];
+
+  // Formas de pagamento que aceitam parcelamento.
+  const INSTALLMENT_PAYMENTS = ['nubank', 'unlimited'];
+  const MAX_INSTALLMENTS = 12;
+
+  function installmentsOf(e) {
+    return INSTALLMENT_PAYMENTS.includes(e.payment) && e.installments > 1 ? e.installments : 1;
+  }
 
   function paymentLabel(id) {
     const p = PAYMENTS.find((x) => x.id === id);
@@ -66,27 +75,47 @@
 
   // Número de noites de uma hospedagem (0 se não tiver check-out válido).
   function nights(e) {
-    return e.checkout && e.checkout > e.date ? daysBetween(e.date, e.checkout) : 0;
+    return e.category === 'hospedagem' && e.checkout && e.checkout > e.date ? daysBetween(e.date, e.checkout) : 0;
   }
 
-  // Distribui o valor pelos dias: hospedagem vira uma parcela por noite
-  // (os centavos que sobram vão para as primeiras noites); o resto fica num dia só.
+  // Passagem com volta em outro dia tem dois trechos; senão, um.
+  function hasReturnLeg(e) {
+    return e.category === 'passagem' && !!e.returnDate && e.returnDate > e.date;
+  }
+
+  // Divide `amount` em n partes inteiras; os centavos que sobram vão para as primeiras.
+  function split(amount, n) {
+    const base = Math.floor(amount / n);
+    const extra = amount - base * n;
+    return Array.from({ length: n }, (_, i) => base + (i < extra ? 1 : 0));
+  }
+
+  // Distribui o valor pelos dias: hospedagem vira uma parcela por noite, passagem
+  // metade na ida e metade na volta (contando na semana da viagem, não da compra);
+  // o resto fica num dia só.
   function allocate(e) {
     const n = nights(e);
-    if (!n) return [{ date: e.date, amount: e.amount }];
-    const base = Math.floor(e.amount / n);
-    const extra = e.amount - base * n;
-    return Array.from({ length: n }, (_, i) => ({ date: addDays(e.date, i), amount: base + (i < extra ? 1 : 0) }));
+    if (n) return split(e.amount, n).map((amount, i) => ({ date: addDays(e.date, i), amount }));
+    if (hasReturnLeg(e)) {
+      const [ida, volta] = split(e.amount, 2);
+      return [{ date: e.date, amount: ida }, { date: e.returnDate, amount: volta }];
+    }
+    return [{ date: e.date, amount: e.amount }];
   }
 
   function inRange(date, startIso) {
     return !startIso || (date >= startIso && date <= addDays(startIso, 6));
   }
 
-  // Parte da despesa que cai na semana: { amount, nights } (nights só para hospedagem).
+  // Parte da despesa que cai na semana: { amount, nights, legs } — nights só para
+  // hospedagem; legs (trechos na semana) só para passagem com volta.
   function weekShare(e, startIso) {
     const parts = allocate(e).filter((a) => inRange(a.date, startIso));
-    return { amount: parts.reduce((sum, a) => sum + a.amount, 0), nights: nights(e) ? parts.length : 0 };
+    return {
+      amount: parts.reduce((sum, a) => sum + a.amount, 0),
+      nights: nights(e) ? parts.length : 0,
+      legs: hasReturnLeg(e) ? parts.length : 0,
+    };
   }
 
   function expensesInWeek(expenses, startIso) {
@@ -149,20 +178,28 @@
 
   // CSV com ';' e vírgula decimal, que abre direto no Excel em português.
   // Com `startIso`, "Valor" é a parte da semana e "Valor total" o valor cheio.
+  // "Data" é o check-in na hospedagem e a ida na passagem.
   function toCSV(expenses, startIso = null) {
-    const header = ['Data', 'Check-out', 'Noites', 'Categoria', 'Descrição', 'Cidade', 'Pagamento', 'Reembolsável', 'Valor', 'Valor total'];
+    const header = ['Data', 'Check-out/Volta', 'Noites', 'Categoria', 'Descrição', 'Cidade', 'Pagamento', 'Parcelas',
+      'Reembolsável', 'Data da compra', 'Companhia aérea', 'Localizador', 'Valor', 'Valor total'];
     const rows = expenses.map((e) => {
       const cat = CATEGORIES.find((c) => c.id === e.category);
       const share = weekShare(e, startIso);
+      const isFlight = e.category === 'passagem';
+      const end = nights(e) ? e.checkout : isFlight && e.returnDate ? e.returnDate : '';
       return [
         brDate(e.date),
-        nights(e) ? brDate(e.checkout) : '',
+        end ? brDate(end) : '',
         nights(e) ? (share.nights === nights(e) ? share.nights : `${share.nights} de ${nights(e)}`) : '',
         cat ? cat.label : e.category,
         e.description,
         e.city,
         paymentLabel(e.payment),
+        installmentsOf(e) > 1 ? `${installmentsOf(e)}x` : '',
         e.reimbursable ? 'Sim' : 'Não',
+        isFlight && e.purchaseDate ? brDate(e.purchaseDate) : '',
+        isFlight ? e.airline || '' : '',
+        isFlight ? e.locator || '' : '',
         brMoney(share.amount),
         brMoney(e.amount),
       ].map(csvCell).join(';');
@@ -171,7 +208,7 @@
   }
 
   const api = {
-    CATEGORIES, PAYMENTS, CITIES, paymentLabel, parseDate, toISODate, addDays, weekStart, weekDays,
+    CATEGORIES, PAYMENTS, CITIES, AIRLINES, INSTALLMENT_PAYMENTS, MAX_INSTALLMENTS, installmentsOf, hasReturnLeg, paymentLabel, parseDate, toISODate, addDays, weekStart, weekDays,
     nights, allocate, weekShare, expensesInWeek, parseAmount, formatMoney, summarize, toCSV,
   };
 

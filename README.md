@@ -13,7 +13,10 @@ celular e no computador, pode ser instalado na tela inicial (PWA) e funciona off
 - **Categorias**: hospedagem, alimentação, transporte, combustível, passagem, outros
 - **Hospedagem com check-in e check-out**: o valor é distribuído por noite, e uma
   estadia que atravessa semanas entra em cada semana só com as suas noites
-- **Formas de pagamento**: Nubank, Unlimited, Ticket e Pix/dinheiro, com total por forma
+- **Passagem com ida, volta, data da compra, companhia aérea e localizador**: conta na
+  semana da viagem (metade na ida, metade na volta), não na semana da compra
+- **Formas de pagamento**: Nubank, Unlimited, Ticket e Pix/dinheiro, com total por forma;
+  Nubank e Unlimited permitem informar parcelas (só daquela despesa)
 - **Reembolso**: marque o que a empresa deve reembolsar e veja o total a receber
 - **Local**: Rio de Janeiro e São Paulo com um toque, ou digite outro
 - **Orçamento semanal** opcional, com alerta quando é ultrapassado

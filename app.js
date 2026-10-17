@@ -1,8 +1,9 @@
 (function () {
-  const { CATEGORIES, PAYMENTS, CITIES, paymentLabel, nights, weekShare, toISODate, addDays, weekStart, weekDays, parseDate,
+  const { CATEGORIES, PAYMENTS, CITIES, AIRLINES, INSTALLMENT_PAYMENTS, MAX_INSTALLMENTS, installmentsOf,
+    hasReturnLeg, paymentLabel, nights, weekShare, toISODate, addDays, weekStart, weekDays, parseDate,
     expensesInWeek, parseAmount, formatMoney, summarize, toCSV } = Calc;
 
-  const APP_VERSION = '2026.10.17-5';
+  const APP_VERSION = '2026.10.17-6';
   const STORAGE_KEY = 'semanasp:v1';
   const $ = (sel) => document.querySelector(sel);
 
@@ -101,18 +102,28 @@
       const c = CATEGORIES.find((x) => x.id === e.category) || CATEGORIES[CATEGORIES.length - 1];
       const n = nights(e);
       const share = weekShare(e, currentWeek);
-      const when = n
-        ? `${fmtShort(e.date)} → ${fmtShort(e.checkout)} · ${n} ${n === 1 ? 'noite' : 'noites'}`
-        : `${weekdayShort(e.date)}, ${fmtShort(e.date)}`;
-      const partial = share.amount !== e.amount
-        ? `<div class="part">${share.nights} de ${n} noites nesta semana · total ${formatMoney(e.amount)}</div>` : '';
-      const tags = `<span class="tags"><span class="tag">${escapeHtml(paymentLabel(e.payment))}</span>`
+      const isFlight = e.category === 'passagem';
+      let when = `${weekdayShort(e.date)}, ${fmtShort(e.date)}`;
+      if (n) when = `${fmtShort(e.date)} → ${fmtShort(e.checkout)} · ${n} ${n === 1 ? 'noite' : 'noites'}`;
+      else if (isFlight) {
+        when = `Ida ${fmtShort(e.date)}${hasReturnLeg(e) ? ` → volta ${fmtShort(e.returnDate)}` : ''}`
+          + (e.purchaseDate ? ` · comprada ${fmtShort(e.purchaseDate)}` : '');
+      }
+      let partial = '';
+      if (share.amount !== e.amount) {
+        const part = n ? `${share.nights} de ${n} noites` : weekShare({ ...e, returnDate: null }, currentWeek).amount ? 'Ida' : 'Volta';
+        partial = `<div class="part">${part} nesta semana · total ${formatMoney(e.amount)}</div>`;
+      }
+      const inst = installmentsOf(e);
+      const tags = `<span class="tags"><span class="tag">${escapeHtml(paymentLabel(e.payment))}${inst > 1 ? ` ${inst}x` : ''}</span>`
         + (e.reimbursable ? '<span class="tag refund">reembolsável</span>' : '') + '</span>';
+      const title = e.description || (isFlight && (e.airline || e.locator)
+        ? ['Passagem', e.airline, e.locator].filter(Boolean).join(' · ') : c.label);
       return `
         <li data-id="${e.id}">
           <span class="ico">${c.icon}</span>
           <div class="info">
-            <div class="desc">${escapeHtml(e.description || c.label)}</div>
+            <div class="desc">${escapeHtml(title)}</div>
             <div class="muted">${when}${e.city ? ' · ' + escapeHtml(e.city) : ''}</div>${partial}
           </div>
           <div class="amt">${formatMoney(share.amount)}${tags}</div>
@@ -148,12 +159,19 @@
     form.date.value = src.date || (thisWeek ? today() : currentWeek);
     form.description.value = src.description || '';
     form.checkout.value = src.checkout || '';
+    form.returnDate.value = src.returnDate || '';
+    form.purchaseDate.value = src.purchaseDate || today();
+    form.locator.value = src.locator || '';
+    setAirline(src.airline || '');
     const lastPayment = last && PAYMENTS.some((p) => p.id === last.payment) ? last.payment : PAYMENTS[0].id;
     form.payment.value = expense && PAYMENTS.some((p) => p.id === expense.payment) ? expense.payment : lastPayment;
     form.reimbursable.checked = expense ? expense.reimbursable : false;
+    // Parcelas valem só para esta despesa: uma nova sempre começa à vista.
+    form.installments.value = String(expense ? installmentsOf(expense) : 1);
+    syncInstallments();
     selectedCategory = src.category || CATEGORIES[0].id;
     renderCategoryPicker();
-    syncStay();
+    syncDates();
 
     const otherCities = [...new Set(state.expenses.map((e) => e.city))].filter((c) => c && !CITIES.includes(c));
     $('#cities').innerHTML = otherCities.map((c) => `<option value="${escapeHtml(c)}">`).join('');
@@ -191,20 +209,29 @@
     if (!btn) return;
     selectedCategory = btn.dataset.cat;
     renderCategoryPicker();
-    syncStay();
+    syncDates();
   });
 
   // Hospedagem: "Data" vira check-in, aparece o check-out e o valor por noite.
-  function syncStay() {
+  // Passagem: "Data" vira ida, aparecem volta, data da compra, companhia e localizador.
+  function syncDates() {
     const isStay = selectedCategory === 'hospedagem';
-    $('#date-label').textContent = isStay ? 'Check-in' : 'Data';
+    const isFlight = selectedCategory === 'passagem';
+    $('#date-label').textContent = isStay ? 'Check-in' : isFlight ? 'Ida' : 'Data';
+    $('#return-field').hidden = !isFlight;
+    $('#flight-fields').hidden = !isFlight;
+    form.returnDate.setCustomValidity('');
+    syncStay(isStay);
+  }
+
+  function syncStay(isStay = selectedCategory === 'hospedagem') {
     $('#checkout-field').hidden = !isStay;
     form.checkout.required = isStay;
     form.checkout.setCustomValidity('');
     $('#stay-hint').hidden = !isStay;
     if (!isStay) return;
     if (!form.checkout.value && form.date.value) form.checkout.value = addDays(form.date.value, 1);
-    const n = nights({ date: form.date.value, checkout: form.checkout.value });
+    const n = nights({ category: 'hospedagem', date: form.date.value, checkout: form.checkout.value });
     const amount = parseAmount(form.amount.value);
     const hint = $('#stay-hint');
     hint.classList.toggle('error', !n);
@@ -218,8 +245,47 @@
     if (form.checkout.value && form.checkout.value <= form.date.value) form.checkout.value = addDays(form.date.value, 1);
     syncStay();
   });
-  form.checkout.addEventListener('change', syncStay);
-  form.amount.addEventListener('input', syncStay);
+  form.checkout.addEventListener('change', () => syncStay());
+  form.amount.addEventListener('input', () => { syncStay(); syncInstallments(); });
+  form.returnDate.addEventListener('input', () => form.returnDate.setCustomValidity(''));
+  form.locator.addEventListener('input', () => {
+    const pos = form.locator.selectionStart;
+    form.locator.value = form.locator.value.toUpperCase();
+    form.locator.setSelectionRange(pos, pos);
+  });
+
+  // Companhia aérea: atalhos ou "Outra" para digitar.
+  function setAirline(name, other = !!name && !AIRLINES.includes(name)) {
+    form.airline.value = name || '';
+    form.airline.hidden = !other;
+    $('#airline-picker').innerHTML = [...AIRLINES, 'Outra'].map((a) => {
+      const pressed = a === 'Outra' ? other : !other && a === name;
+      return `<button type="button" data-airline="${a}" aria-pressed="${pressed}">${a === 'Outra' ? '✏️ Outra' : a}</button>`;
+    }).join('');
+  }
+
+  $('#airline-picker').addEventListener('click', (ev) => {
+    const btn = ev.target.closest('[data-airline]');
+    if (!btn) return;
+    if (btn.dataset.airline !== 'Outra') return setAirline(btn.dataset.airline);
+    setAirline(form.airline.hidden || AIRLINES.includes(form.airline.value) ? '' : form.airline.value, true);
+    form.airline.focus();
+  });
+
+  // Parcelas: só para Nubank e Unlimited; opções mostram o valor de cada parcela.
+  function syncInstallments() {
+    const allowed = INSTALLMENT_PAYMENTS.includes(form.payment.value);
+    $('#installments-field').hidden = !allowed;
+    const amount = parseAmount(form.amount.value);
+    const current = form.installments.value || '1';
+    form.installments.innerHTML = Array.from({ length: MAX_INSTALLMENTS }, (_, i) => {
+      const k = i + 1;
+      const label = k === 1 ? 'À vista' : amount > 0 ? `${k}x de ${formatMoney(Math.round(amount / k))}` : `${k}x`;
+      return `<option value="${k}">${label}</option>`;
+    }).join('');
+    form.installments.value = current;
+  }
+  form.payment.addEventListener('change', syncInstallments);
 
   form.addEventListener('submit', (ev) => {
     const amount = parseAmount(form.amount.value);
@@ -230,15 +296,28 @@
       return;
     }
     const isStay = selectedCategory === 'hospedagem';
-    if (isStay && !nights({ date: form.date.value, checkout: form.checkout.value })) {
+    const isFlight = selectedCategory === 'passagem';
+    if (isStay && !nights({ category: 'hospedagem', date: form.date.value, checkout: form.checkout.value })) {
       ev.preventDefault();
       form.checkout.setCustomValidity('O check-out precisa ser depois do check-in');
       form.checkout.reportValidity();
       return;
     }
+    if (isFlight && form.returnDate.value && form.returnDate.value < form.date.value) {
+      ev.preventDefault();
+      form.returnDate.setCustomValidity('A volta não pode ser antes da ida');
+      form.returnDate.reportValidity();
+      return;
+    }
+    const installments = Number(form.installments.value);
     const data = {
       amount,
       checkout: isStay ? form.checkout.value : null,
+      returnDate: isFlight ? form.returnDate.value || null : null,
+      purchaseDate: isFlight ? form.purchaseDate.value || null : null,
+      airline: isFlight ? form.airline.value.trim() || null : null,
+      locator: isFlight ? form.locator.value.trim().toUpperCase() || null : null,
+      installments: INSTALLMENT_PAYMENTS.includes(form.payment.value) && installments > 1 ? installments : null,
       date: form.date.value,
       category: selectedCategory,
       description: form.description.value.trim(),

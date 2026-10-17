@@ -23,6 +23,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 
 body {
   margin: 0;
@@ -162,3 +163,5 @@ dialog textarea { resize: vertical; }
 .expenses .part { font-size: .75rem; color: var(--primary); margin-top: 2px; }
 .expenses .amt { flex-shrink: 0; white-space: nowrap; }
 .expenses .tags { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; margin-top: 2px; }
+.dates select { width: 100%; }
+dialog label small { font-size: .75rem; }

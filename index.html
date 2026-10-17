@@ -78,6 +78,10 @@
       <label>Valor (R$)
         <input name="amount" inputmode="decimal" placeholder="0,00" required autocomplete="off">
       </label>
+      <fieldset>
+        <legend>Categoria</legend>
+        <div id="category-picker" class="chips"></div>
+      </fieldset>
       <div class="dates">
         <label><span id="date-label">Data</span>
           <input name="date" type="date" required>
@@ -85,12 +89,26 @@
         <label id="checkout-field" hidden>Check-out
           <input name="checkout" type="date">
         </label>
+        <label id="return-field" hidden><span>Volta <small>(opcional)</small></span>
+          <input name="returnDate" type="date">
+        </label>
       </div>
       <p id="stay-hint" class="stay-hint" hidden></p>
-      <fieldset>
-        <legend>Categoria</legend>
-        <div id="category-picker" class="chips"></div>
-      </fieldset>
+      <div id="flight-fields" hidden>
+        <div class="dates">
+          <label>Data da compra
+            <input name="purchaseDate" type="date">
+          </label>
+          <label>Localizador
+            <input name="locator" maxlength="12" autocapitalize="characters" autocomplete="off" placeholder="Ex.: ABC123">
+          </label>
+        </div>
+        <fieldset>
+          <legend>Companhia aérea</legend>
+          <div id="airline-picker" class="chips"></div>
+          <input name="airline" placeholder="Digite a companhia" maxlength="40" class="city-other" hidden>
+        </fieldset>
+      </div>
       <label>Descrição
         <textarea name="description" rows="2" placeholder="Ex.: Jantar com cliente" maxlength="160"></textarea>
       </label>
@@ -100,9 +118,14 @@
         <input name="city" list="cities" placeholder="Digite o local" maxlength="60" class="city-other" hidden>
         <datalist id="cities"></datalist>
       </fieldset>
-      <label>Pagamento
-        <select name="payment"></select>
-      </label>
+      <div class="dates">
+        <label>Pagamento
+          <select name="payment"></select>
+        </label>
+        <label id="installments-field" hidden>Parcelas
+          <select name="installments"></select>
+        </label>
+      </div>
       <label class="check">
         <input name="reimbursable" type="checkbox"> Reembolsável pela empresa
       </label>
