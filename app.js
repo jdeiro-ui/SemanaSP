@@ -107,21 +107,28 @@
     ).join('');
   }
 
-  function openExpense(expense) {
+  // `draft` traz campos pré-preenchidos (ex.: lidos de um print) para uma despesa nova.
+  function openExpense(expense, draft = null, note = null) {
     editingId = expense ? expense.id : null;
     $('#form-title').textContent = expense ? 'Editar despesa' : 'Nova despesa';
     $('#delete-expense').hidden = !expense;
+    $('#scan-note').hidden = !note;
+    if (note) {
+      $('#scan-note').textContent = note.text;
+      $('#scan-note').className = 'note' + (note.warn ? ' warn' : '');
+    }
 
     const thisWeek = weekStart(today()) === currentWeek;
     const last = state.expenses[state.expenses.length - 1];
-    form.amount.value = expense ? (expense.amount / 100).toFixed(2).replace('.', ',') : '';
-    form.date.value = expense ? expense.date : thisWeek ? today() : currentWeek;
-    form.description.value = expense ? expense.description : '';
-    form.city.value = expense ? expense.city : (last ? last.city : '');
+    const src = expense || draft || {};
+    form.amount.value = src.amount ? (src.amount / 100).toFixed(2).replace('.', ',') : '';
+    form.date.value = src.date || (thisWeek ? today() : currentWeek);
+    form.description.value = src.description || '';
+    form.city.value = expense ? expense.city : src.city || (last ? last.city : '');
     form.payment.value = expense ? expense.payment : (last ? last.payment : PAYMENTS[0].id);
     form.reimbursable.checked = expense ? expense.reimbursable : true;
     form.reimbursable.disabled = false;
-    selectedCategory = expense ? expense.category : CATEGORIES[0].id;
+    selectedCategory = src.category || CATEGORIES[0].id;
     renderCategoryPicker();
     syncReimbursable();
 
@@ -129,7 +136,7 @@
     $('#cities').innerHTML = cities.map((c) => `<option value="${escapeHtml(c)}">`).join('');
 
     dialog.showModal();
-    if (!expense) form.amount.focus();
+    if (!expense && !draft) form.amount.focus();
   }
 
   // Gasto no cartão corporativo não precisa de reembolso.
@@ -251,10 +258,77 @@
     }
   });
 
+  // ---------- Leitura de prints (OCR no aparelho) ----------
+  const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+  const scanDialog = $('#scan-dialog');
+  let ocrWorker = null;
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const s = Object.assign(document.createElement('script'), { src, onload: resolve, onerror: reject });
+      document.head.appendChild(s);
+    });
+  }
+
+  async function getOcrWorker() {
+    if (ocrWorker) return ocrWorker;
+    if (!window.Tesseract) await loadScript(TESSERACT_URL);
+    ocrWorker = await Tesseract.createWorker('por', 1, {
+      logger: (m) => {
+        if (m.status === 'loading language traineddata') $('#scan-status').textContent = 'Preparando o leitor (só na 1ª vez)…';
+        else if (m.status === 'recognizing text') $('#scan-status').textContent = `Lendo o print… ${Math.round(m.progress * 100)}%`;
+      },
+    });
+    return ocrWorker;
+  }
+
+  async function scanImage(blob) {
+    $('#scan-status').textContent = 'Lendo o print…';
+    scanDialog.showModal();
+    let result;
+    try {
+      const worker = await getOcrWorker();
+      const { data } = await worker.recognize(blob);
+      result = Receipt.parseReceipt(data.text, today());
+    } catch (err) {
+      scanDialog.close();
+      alert('Não foi possível ler o print. Verifique a conexão na primeira vez que usar.\n\n' + (err.message || err));
+      return;
+    }
+    scanDialog.close();
+
+    const origin = result.source === 'uber' ? 'da corrida da Uber' : result.source === 'keeta' ? 'do pedido do Keeta' : 'do print';
+    const problems = [];
+    if (!result.amount) problems.push('Não encontrei o valor.');
+    if (!result.date) problems.push('A data não aparece no print; usei a de hoje.');
+    const note = { warn: problems.length > 0, text: `Lido ${origin}. ${problems.join(' ')} Confira antes de salvar.`.replace(/\s+/g, ' ') };
+    if (!result.date) result.date = today();
+    openExpense(null, result, note);
+  }
+
+  $('#scan-input').addEventListener('change', (ev) => {
+    const file = ev.target.files[0];
+    ev.target.value = '';
+    if (file) scanImage(file);
+  });
+
+  // Imagem recebida pelo menu "Compartilhar" do Android (ver share_target no manifest e sw.js).
+  async function consumeSharedImage() {
+    const params = new URLSearchParams(location.search);
+    if (!params.has('share')) return;
+    history.replaceState(null, '', location.pathname);
+    const cache = await caches.open('semanasp-share');
+    const res = await cache.match('shared-image');
+    if (!res) return;
+    await cache.delete('shared-image');
+    scanImage(await res.blob());
+  }
+
   // ---------- Offline ----------
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 
   render();
+  if ('caches' in window) consumeSharedImage();
 })();

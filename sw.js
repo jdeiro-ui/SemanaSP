@@ -1,6 +1,7 @@
 // Cache simples para o app funcionar offline. Mude a versão ao alterar arquivos.
-const CACHE = 'semanasp-v1';
-const ASSETS = ['./', 'index.html', 'styles.css', 'calc.js', 'app.js', 'manifest.webmanifest', 'icon.svg'];
+const CACHE = 'semanasp-v2';
+const SHARE_CACHE = 'semanasp-share';
+const ASSETS = ['./', 'index.html', 'styles.css', 'calc.js', 'receipt.js', 'app.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)));
@@ -9,19 +10,39 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+    caches.keys().then((keys) => Promise.all(
+      keys.filter((k) => k !== CACHE && k !== SHARE_CACHE).map((k) => caches.delete(k))
+    ))
   );
   self.clients.claim();
 });
 
-// Rede primeiro, cache como reserva: atualizações aparecem quando há conexão.
+// Recebe o print enviado pelo menu "Compartilhar", guarda e abre o app para lê-lo.
+async function handleShare(request) {
+  const form = await request.formData();
+  const file = form.get('image');
+  if (file && file.size) {
+    const cache = await caches.open(SHARE_CACHE);
+    await cache.put('shared-image', new Response(file, { headers: { 'content-type': file.type } }));
+  }
+  return Response.redirect(new URL('./?share=1', self.registration.scope).href, 303);
+}
+
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  if (event.request.method === 'POST' && url.pathname.endsWith('/share-target')) {
+    event.respondWith(handleShare(event.request));
+    return;
+  }
   if (event.request.method !== 'GET') return;
+  // Rede primeiro, cache como reserva: atualizações aparecem quando há conexão.
   event.respondWith(
     fetch(event.request)
       .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+        if (res.ok || res.type === 'opaque') {
+          const copy = res.clone();
+          caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+        }
         return res;
       })
       .catch(() => caches.match(event.request))
