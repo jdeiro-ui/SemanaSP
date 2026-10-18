@@ -3,7 +3,7 @@
     hasReturnLeg, paymentLabel, nights, weekShare, toISODate, addDays, weekStart, weekDays, parseDate,
     expensesInWeek, parseAmount, formatMoney, summarize, toCSV } = Calc;
 
-  const APP_VERSION = '2026.10.18-1';
+  const APP_VERSION = '2026.10.18-2';
   const STORAGE_KEY = 'semanasp:v1';
   const $ = (sel) => document.querySelector(sel);
 
@@ -66,7 +66,7 @@
       .map((c) => `
         <li>
           <div class="label"><span>${c.icon} ${c.label}</span><b>${formatMoney(s.byCategory[c.id])}</b></div>
-          <div class="track"><div class="fill" style="width:${(s.byCategory[c.id] / maxCat) * 100}%;background:${c.color}"></div></div>
+          <div class="track"><div class="fill" style="width:${(s.byCategory[c.id] / maxCat) * 100}%;background:var(--cat-${c.id})"></div></div>
         </li>`).join('') || '<li class="muted">Sem gastos.</li>';
 
     const maxPay = Math.max(1, ...Object.values(s.byPayment));

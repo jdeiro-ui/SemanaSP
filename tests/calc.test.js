@@ -141,3 +141,38 @@ test('mergeExpenses acrescenta sem duplicar e descarta itens inválidos', () => 
   assert.equal(r.added, 1);
   assert.equal(r.skipped, 3);
 });
+
+test('analytics separa realizado e agendado, média por mês, viagem e noite', () => {
+  const ex = [
+    // Semana 05/10: hotel 2 noites (R$ 400) + almoço R$ 50 → viagem de R$ 450
+    { id: 'a', date: '2026-10-06', checkout: '2026-10-08', category: 'hospedagem', amount: 40000 },
+    { id: 'b', date: '2026-10-07', category: 'alimentacao', amount: 5000 },
+    // Semana 14/09: voo R$ 600 (ida e volta) → viagem de R$ 600
+    { id: 'c', date: '2026-09-15', returnDate: '2026-09-17', category: 'passagem', amount: 60000 },
+    // Voo pago pela empresa (R$ 0) não conta como viagem
+    { id: 'd', date: '2026-08-04', category: 'passagem', amount: 0 },
+    // Futuro (depois de hoje): agendado
+    { id: 'e', date: '2026-11-10', category: 'passagem', amount: 50000 },
+    // Outro ano
+    { id: 'f', date: '2027-01-12', category: 'passagem', amount: 30000 },
+  ];
+  const r = Calc.analytics(ex, 2026, '2026-10-18');
+  assert.equal(r.months.length, 12);
+  assert.equal(r.total, 105000);
+  assert.equal(r.scheduled, 50000);
+  assert.equal(r.trips, 2);
+  assert.equal(r.activeMonths, 2);
+  assert.equal(r.avgPerMonth, 52500);
+  assert.equal(r.avgPerTrip, 52500);
+  assert.equal(r.avgPerNight, 20000);
+  assert.equal(r.avgPerTripByCategory.passagem, 30000);
+  const oct = r.months.find((m) => m.key === '2026-10');
+  assert.deepEqual([oct.total, oct.done, oct.future, oct.byCategory.hospedagem], [45000, 45000, false, 40000]);
+  const nov = r.months.find((m) => m.key === '2026-11');
+  assert.deepEqual([nov.total, nov.scheduled, nov.future], [50000, 50000, true]);
+
+  const all = Calc.analytics(ex, null, '2026-10-18');
+  assert.deepEqual([all.months[0].key, all.months[all.months.length - 1].key, all.months.length], ['2026-08', '2027-01', 6]);
+  assert.equal(all.scheduled, 80000);
+  assert.deepEqual(Calc.yearsWithData(ex), [2027, 2026]);
+});

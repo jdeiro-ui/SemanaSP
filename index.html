@@ -23,6 +23,12 @@
   </header>
 
   <main>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="week" aria-selected="true">Semana</button>
+      <button role="tab" data-tab="stats" aria-selected="false">Análises</button>
+    </nav>
+
+    <div id="view-week">
     <nav class="week-nav">
       <button id="prev-week" class="icon-btn" aria-label="Semana anterior">‹</button>
       <div class="week-label">
@@ -67,6 +73,41 @@
       <ul id="expense-list" class="expenses"></ul>
       <p id="empty" class="muted center">Nenhuma despesa nesta semana.</p>
     </section>
+    </div>
+
+    <div id="view-stats" hidden>
+      <div id="stats-years" class="chips period"></div>
+
+      <section class="kpis">
+        <div class="kpi"><span class="muted">Gasto realizado</span><b id="kpi-total"></b><small id="kpi-total-sub" class="muted"></small></div>
+        <div class="kpi"><span class="muted">Média por mês</span><b id="kpi-month"></b><small id="kpi-month-sub" class="muted"></small></div>
+        <div class="kpi"><span class="muted">Média por viagem</span><b id="kpi-trip"></b><small id="kpi-trip-sub" class="muted"></small></div>
+        <div class="kpi"><span class="muted">Já agendado</span><b id="kpi-sched"></b><small class="muted">compras para datas futuras</small></div>
+      </section>
+
+      <section class="card">
+        <h2>Gasto por mês</h2>
+        <div id="month-legend" class="legend"></div>
+        <div id="month-chart" class="chart"></div>
+        <details class="table-view">
+          <summary>Ver tabela por mês</summary>
+          <div id="month-table"></div>
+        </details>
+      </section>
+
+      <section class="card">
+        <h2>Por categoria</h2>
+        <p class="muted small">Total realizado e média por viagem</p>
+        <ul id="stats-categories" class="bars"></ul>
+      </section>
+
+      <section class="card">
+        <h2>Por ano</h2>
+        <div id="year-table"></div>
+      </section>
+      <p class="muted small center">Cada valor conta no dia em que acontece: hospedagem por noite, passagem no dia do voo.
+        Viagem = semana com gasto.</p>
+    </div>
   </main>
 
   <button id="fab" class="fab" aria-label="Adicionar despesa">+</button>
@@ -172,5 +213,6 @@
   <script src="calc.js"></script>
   <script src="receipt.js"></script>
   <script src="app.js"></script>
+  <script src="stats.js"></script>
 </body>
 </html>

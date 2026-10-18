@@ -1,7 +1,7 @@
 // Cache simples para o app funcionar offline. Mude a versão ao alterar arquivos.
-const CACHE = 'semanasp-v7';
+const CACHE = 'semanasp-v8';
 const SHARE_CACHE = 'semanasp-share';
-const ASSETS = ['./', 'index.html', 'styles.css', 'calc.js', 'receipt.js', 'app.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png'];
+const ASSETS = ['./', 'index.html', 'styles.css', 'calc.js', 'receipt.js', 'app.js', 'stats.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)));

@@ -21,6 +21,8 @@ celular e no computador, pode ser instalado na tela inicial (PWA) e funciona off
 - **Local**: Rio de Janeiro e São Paulo com um toque, ou digite outro
 - **Orçamento semanal** opcional, com alerta quando é ultrapassado
 - **Gráficos** por categoria e por dia da semana
+- **Análises**: gasto realizado e agendado, média por mês e por viagem, gasto mês a
+  mês por categoria, médias por categoria (inclusive hospedagem por noite) e resumo por ano
 - **Exportar CSV** da semana (abre direto no Excel) para a prestação de contas
 - **Backup/restauração** em JSON
 
@@ -53,4 +55,5 @@ npm test
 | `calc.js` | Regras: semanas, valores, totais, CSV |
 | `receipt.js` | Interpretação do texto lido dos prints (Uber, Keeta) |
 | `app.js` | Interação, armazenamento, exportação |
+| `stats.js` | Aba Análises (indicadores, gráfico mensal, tabelas) |
 | `sw.js`, `manifest.webmanifest` | Funcionamento offline e instalação |

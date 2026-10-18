@@ -1,13 +1,17 @@
 // Regras de negócio puras (sem DOM) — usadas pelo app e pelos testes em Node.
 (function (root) {
   const CATEGORIES = [
-    { id: 'hospedagem', label: 'Hospedagem', icon: '🏨', color: '#6366f1' },
-    { id: 'alimentacao', label: 'Alimentação', icon: '🍽️', color: '#f59e0b' },
-    { id: 'transporte', label: 'Transporte', icon: '🚕', color: '#10b981' },
-    { id: 'combustivel', label: 'Combustível', icon: '⛽', color: '#ef4444' },
-    { id: 'passagem', label: 'Passagem', icon: '✈️', color: '#0ea5e9' },
-    { id: 'outros', label: 'Outros', icon: '📎', color: '#64748b' },
+    { id: 'hospedagem', label: 'Hospedagem', icon: '🏨' },
+    { id: 'alimentacao', label: 'Alimentação', icon: '🍽️' },
+    { id: 'transporte', label: 'Transporte', icon: '🚕' },
+    { id: 'combustivel', label: 'Combustível', icon: '⛽' },
+    { id: 'passagem', label: 'Passagem', icon: '✈️' },
+    { id: 'outros', label: 'Outros', icon: '📎' },
   ];
+
+  // Ordem fixa das categorias nos gráficos (empilhamento e legenda). As cores
+  // (--cat-<id> em styles.css) seguem esta ordem numa paleta validada para daltonismo.
+  const CHART_ORDER = ['hospedagem', 'passagem', 'alimentacao', 'transporte', 'combustivel', 'outros'];
 
   const PAYMENTS = [
     { id: 'nubank', label: 'Nubank', color: '#8a05be' },
@@ -215,8 +219,85 @@
     return { expenses: [...existing, ...added], added: added.length, skipped: incoming.length - added.length };
   }
 
+  const monthKey = (iso) => iso.slice(0, 7);
+
+  function monthRange(fromKey, toKey) {
+    const out = [];
+    let [y, m] = fromKey.split('-').map(Number);
+    const [ty, tm] = toKey.split('-').map(Number);
+    while (y < ty || (y === ty && m <= tm)) {
+      out.push(`${y}-${String(m).padStart(2, '0')}`);
+      if (++m > 12) { m = 1; y++; }
+    }
+    return out;
+  }
+
+  // Análises de um período. Cada valor entra no dia em que acontece (allocate);
+  // o que cai depois de `todayIso` é "agendado" (ex.: passagens já compradas).
+  // Uma "viagem" é uma semana com gasto maior que zero.
+  // `year`: número do ano, ou null para todo o histórico.
+  function analytics(expenses, year, todayIso) {
+    const parts = [];
+    for (const e of expenses) {
+      for (const a of allocate(e)) {
+        if (year && Number(a.date.slice(0, 4)) !== year) continue;
+        parts.push({ ...a, category: e.category, nights: nights(e) ? 1 : 0 });
+      }
+    }
+    const keys = parts.map((a) => monthKey(a.date)).sort();
+    const months = year
+      ? monthRange(`${year}-01`, `${year}-12`)
+      : keys.length ? monthRange(keys[0], keys[keys.length - 1]) : [];
+    const todayMonth = monthKey(todayIso);
+    const byMonth = Object.fromEntries(months.map((k) => [k, {
+      key: k, total: 0, done: 0, scheduled: 0, byCategory: {}, future: k > todayMonth,
+    }]));
+
+    const done = { total: 0, byCategory: {}, nights: 0, weeks: {}, months: new Set() };
+    let scheduled = 0;
+    for (const a of parts) {
+      const m = byMonth[monthKey(a.date)];
+      m.total += a.amount;
+      m.byCategory[a.category] = (m.byCategory[a.category] || 0) + a.amount;
+      if (a.date > todayIso) {
+        m.scheduled += a.amount;
+        scheduled += a.amount;
+        continue;
+      }
+      m.done += a.amount;
+      done.total += a.amount;
+      done.byCategory[a.category] = (done.byCategory[a.category] || 0) + a.amount;
+      if (a.category === 'hospedagem') done.nights += a.nights;
+      const w = weekStart(a.date);
+      done.weeks[w] = (done.weeks[w] || 0) + a.amount;
+      if (a.amount > 0) done.months.add(monthKey(a.date));
+    }
+    const trips = Object.values(done.weeks).filter((v) => v > 0).length;
+    const lodging = done.byCategory.hospedagem || 0;
+    return {
+      months: months.map((k) => byMonth[k]),
+      total: done.total,
+      scheduled,
+      trips,
+      activeMonths: done.months.size,
+      avgPerMonth: done.months.size ? Math.round(done.total / done.months.size) : 0,
+      avgPerTrip: trips ? Math.round(done.total / trips) : 0,
+      byCategory: done.byCategory,
+      avgPerTripByCategory: Object.fromEntries(Object.entries(done.byCategory)
+        .map(([c, v]) => [c, trips ? Math.round(v / trips) : 0])),
+      avgPerNight: done.nights ? Math.round(lodging / done.nights) : 0,
+    };
+  }
+
+  // Anos com algum gasto, do mais recente para o mais antigo.
+  function yearsWithData(expenses) {
+    const ys = new Set();
+    for (const e of expenses) for (const a of allocate(e)) ys.add(Number(a.date.slice(0, 4)));
+    return [...ys].sort((a, b) => b - a);
+  }
+
   const api = {
-    CATEGORIES, PAYMENTS, CITIES, AIRLINES, INSTALLMENT_PAYMENTS, MAX_INSTALLMENTS, installmentsOf, hasReturnLeg, paymentLabel, parseDate, toISODate, addDays, weekStart, weekDays,
+    CATEGORIES, CHART_ORDER, PAYMENTS, analytics, yearsWithData, monthRange, CITIES, AIRLINES, INSTALLMENT_PAYMENTS, MAX_INSTALLMENTS, installmentsOf, hasReturnLeg, paymentLabel, parseDate, toISODate, addDays, weekStart, weekDays,
     nights, allocate, weekShare, mergeExpenses, expensesInWeek, parseAmount, formatMoney, summarize, toCSV,
   };
 
