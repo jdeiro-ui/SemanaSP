@@ -296,9 +296,52 @@
     return [...ys].sort((a, b) => b - a);
   }
 
+  // ---------- Sincronização ----------
+  // Cada despesa tem `updatedAt` (ms); exclusões viram marcas { id: updatedAt } em
+  // `deleted`, para um aparelho offline não ressuscitar o que outro apagou.
+  // Em conflito, vale a mudança mais recente.
+  const stamp = (e) => e.updatedAt || e.createdAt || 0;
+
+  // Aplica documentos remotos ({ id, updatedAt, deleted?, ...campos }) ao estado local.
+  function syncMerge(expenses, deleted, remoteDocs) {
+    const byId = new Map(expenses.map((e) => [e.id, e]));
+    const tomb = { ...deleted };
+    let changed = false;
+    for (const r of remoteDocs) {
+      const local = byId.get(r.id);
+      const localStamp = local ? stamp(local) : tomb[r.id] || -1;
+      if (stamp(r) <= localStamp) continue;
+      changed = true;
+      if (r.deleted) {
+        byId.delete(r.id);
+        tomb[r.id] = stamp(r);
+      } else {
+        const { deleted: _d, ...doc } = r;
+        byId.set(r.id, doc);
+        delete tomb[r.id];
+      }
+    }
+    return { expenses: [...byId.values()], deleted: tomb, changed };
+  }
+
+  // O que precisa subir: despesas e exclusões locais mais novas que a versão remota.
+  // `remote` é um Map id -> documento remoto.
+  function pendingUploads(expenses, deleted, remote) {
+    const out = [];
+    for (const e of expenses) {
+      const r = remote.get(e.id);
+      if (!r || stamp(e) > stamp(r)) out.push({ ...e, updatedAt: stamp(e) });
+    }
+    for (const [id, at] of Object.entries(deleted || {})) {
+      const r = remote.get(id);
+      if (r && !r.deleted && at > stamp(r)) out.push({ id, deleted: true, updatedAt: at });
+    }
+    return out;
+  }
+
   const api = {
     CATEGORIES, CHART_ORDER, PAYMENTS, analytics, yearsWithData, monthRange, CITIES, AIRLINES, INSTALLMENT_PAYMENTS, MAX_INSTALLMENTS, installmentsOf, hasReturnLeg, paymentLabel, parseDate, toISODate, addDays, weekStart, weekDays,
-    nights, allocate, weekShare, mergeExpenses, expensesInWeek, parseAmount, formatMoney, summarize, toCSV,
+    nights, allocate, weekShare, mergeExpenses, syncMerge, pendingUploads, expensesInWeek, parseAmount, formatMoney, summarize, toCSV,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

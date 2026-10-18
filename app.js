@@ -3,7 +3,7 @@
     hasReturnLeg, paymentLabel, nights, weekShare, toISODate, addDays, weekStart, weekDays, parseDate,
     expensesInWeek, parseAmount, formatMoney, summarize, toCSV } = Calc;
 
-  const APP_VERSION = '2026.10.18-2';
+  const APP_VERSION = '2026.10.18-3';
   const STORAGE_KEY = 'semanasp:v1';
   const $ = (sel) => document.querySelector(sel);
 
@@ -11,13 +11,15 @@
   function load() {
     try {
       const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      if (data && Array.isArray(data.expenses)) return { budget: 0, ...data };
+      if (data && Array.isArray(data.expenses)) return { budget: 0, deleted: {}, ...data };
     } catch (_) { /* dados corrompidos: começa do zero */ }
-    return { expenses: [], budget: 0 };
+    return { expenses: [], budget: 0, deleted: {} };
   }
 
+  // Grava no aparelho e avisa o sync.js (backup na nuvem) que há mudanças.
   function save() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    window.dispatchEvent(new Event('semanasp:saved'));
   }
 
   const state = load();
@@ -325,6 +327,7 @@
       payment: form.payment.value,
       reimbursable: form.reimbursable.checked,
     };
+    data.updatedAt = Date.now();
     if (editingId) {
       Object.assign(state.expenses.find((e) => e.id === editingId), data);
     } else {
@@ -341,6 +344,7 @@
   $('#delete-expense').addEventListener('click', () => {
     if (!confirm('Excluir esta despesa?')) return;
     state.expenses = state.expenses.filter((e) => e.id !== editingId);
+    state.deleted[editingId] = Date.now();
     save();
     dialog.close();
     render();
@@ -385,6 +389,7 @@
   settingsForm.addEventListener('submit', () => {
     const v = parseAmount(settingsForm.budget.value);
     state.budget = v > 0 ? v : 0;
+    state.budgetUpdatedAt = Date.now();
     save();
     render();
   });
@@ -422,8 +427,14 @@
       const data = JSON.parse(await file.text());
       if (!Array.isArray(data.expenses)) throw new Error('formato inválido');
       if (!confirm(`Substituir os dados atuais por ${data.expenses.length} despesas do backup?`)) return;
-      state.expenses = data.expenses;
+      // O backup passa a valer em todos os aparelhos: o que não está nele vira exclusão.
+      const now = Date.now();
+      const kept = new Set(data.expenses.map((e) => e.id));
+      for (const e of state.expenses) if (!kept.has(e.id)) state.deleted[e.id] = now;
+      state.expenses = data.expenses.map((e) => ({ ...e, updatedAt: now }));
+      for (const id of kept) delete state.deleted[id];
       state.budget = Number(data.budget) || 0;
+      state.budgetUpdatedAt = now;
       save();
       settingsDialog.close();
       render();
@@ -512,6 +523,29 @@
     });
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
+
+  // Ponte para o sync.js: lê o estado e aplica mudanças vindas da nuvem.
+  window.SemanaSP = {
+    getState: () => state,
+    applyRemote(docs, settings) {
+      const r = Calc.syncMerge(state.expenses, state.deleted, docs);
+      let changed = r.changed;
+      if (r.changed) {
+        state.expenses = r.expenses;
+        state.deleted = r.deleted;
+      }
+      if (settings && (settings.budgetUpdatedAt || 0) > (state.budgetUpdatedAt || 0)) {
+        state.budget = settings.budget || 0;
+        state.budgetUpdatedAt = settings.budgetUpdatedAt;
+        changed = true;
+      }
+      if (!changed) return false;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      render();
+      window.dispatchEvent(new Event('semanasp:remote'));
+      return true;
+    },
+  };
 
   render();
   if ('caches' in window) consumeSharedImage();

@@ -24,10 +24,13 @@ celular e no computador, pode ser instalado na tela inicial (PWA) e funciona off
 - **Análises**: gasto realizado e agendado, média por mês e por viagem, gasto mês a
   mês por categoria, médias por categoria (inclusive hospedagem por noite) e resumo por ano
 - **Exportar CSV** da semana (abre direto no Excel) para a prestação de contas
-- **Backup/restauração** em JSON
+- **Backup na nuvem** (Firebase): com login Google, cada mudança vai para o Firestore
+  e os aparelhos ficam sincronizados; funciona offline e envia quando a conexão volta
+- **Backup/restauração** em JSON e **importação** que acrescenta despesas sem apagar
 
-Os dados ficam salvos só no navegador do aparelho (`localStorage`). Use o backup
-para levar os dados para outro aparelho ou não perdê-los.
+Os dados ficam salvos no navegador do aparelho (`localStorage`) e, com o backup na
+nuvem ativo, também em `users/{uid}/expenses` no Firestore do projeto configurado em
+`firebase-config.js`.
 
 ## Como usar
 
@@ -56,4 +59,5 @@ npm test
 | `receipt.js` | Interpretação do texto lido dos prints (Uber, Keeta) |
 | `app.js` | Interação, armazenamento, exportação |
 | `stats.js` | Aba Análises (indicadores, gráfico mensal, tabelas) |
+| `sync.js`, `firebase-config.js` | Backup e sincronização na nuvem (Firebase) |
 | `sw.js`, `manifest.webmanifest` | Funcionamento offline e instalação |

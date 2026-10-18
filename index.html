@@ -190,8 +190,15 @@
       <label>Orçamento semanal (R$)
         <input name="budget" inputmode="decimal" placeholder="Sem limite" autocomplete="off">
       </label>
-      <h3>Backup</h3>
-      <p class="muted">Os dados ficam salvos apenas neste aparelho. Faça backup de vez em quando.</p>
+      <h3>Backup na nuvem</h3>
+      <p id="cloud-status" class="muted">Carregando…</p>
+      <div class="actions">
+        <button type="button" id="cloud-login" class="primary" hidden>Entrar com Google</button>
+        <button type="button" id="cloud-sync" hidden>Sincronizar agora</button>
+        <button type="button" id="cloud-logout" hidden>Sair</button>
+      </div>
+      <h3>Backup em arquivo</h3>
+      <p class="muted">Cópia manual dos dados deste aparelho.</p>
       <div class="actions">
         <button type="button" id="backup-export">Baixar backup</button>
         <label class="button">Importar despesas
@@ -214,5 +221,7 @@
   <script src="receipt.js"></script>
   <script src="app.js"></script>
   <script src="stats.js"></script>
+  <script src="firebase-config.js"></script>
+  <script type="module" src="sync.js"></script>
 </body>
 </html>

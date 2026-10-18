@@ -224,6 +224,8 @@
     render();
   });
 
+  window.addEventListener('semanasp:remote', () => { if (!$('#view-stats').hidden) render(); });
+
   let resizeTimer;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);

@@ -176,3 +176,35 @@ test('analytics separa realizado e agendado, média por mês, viagem e noite', (
   assert.equal(all.scheduled, 80000);
   assert.deepEqual(Calc.yearsWithData(ex), [2027, 2026]);
 });
+
+test('syncMerge: remoto mais novo vence, exclusão remota apaga e deixa marca', () => {
+  const local = [
+    { id: 'a', amount: 100, updatedAt: 10 },
+    { id: 'b', amount: 200, updatedAt: 50 },
+    { id: 'c', amount: 300, updatedAt: 10 },
+  ];
+  const remote = [
+    { id: 'a', amount: 111, updatedAt: 20 },          // remoto mais novo: substitui
+    { id: 'b', amount: 222, updatedAt: 40 },          // remoto mais velho: ignora
+    { id: 'c', deleted: true, updatedAt: 30 },        // apagado em outro aparelho
+    { id: 'd', amount: 400, updatedAt: 5 },           // novo de outro aparelho
+    { id: 'x', amount: 9, updatedAt: 5 },             // apagado aqui depois (marca 8): ignora
+  ];
+  const r = Calc.syncMerge(local, { x: 8 }, remote);
+  assert.equal(r.changed, true);
+  assert.deepEqual(r.expenses.map((e) => [e.id, e.amount]).sort(), [['a', 111], ['b', 200], ['d', 400]]);
+  assert.deepEqual(r.deleted, { x: 8, c: 30 });
+  assert.equal(Calc.syncMerge(r.expenses, r.deleted, remote).changed, false); // idempotente
+});
+
+test('pendingUploads: sobe o que é novo ou mais recente, inclusive exclusões', () => {
+  const remote = new Map([
+    ['a', { id: 'a', updatedAt: 20 }],
+    ['b', { id: 'b', updatedAt: 50 }],
+    ['z', { id: 'z', updatedAt: 5 }],
+    ['y', { id: 'y', deleted: true, updatedAt: 5 }],
+  ]);
+  const local = [{ id: 'a', updatedAt: 30 }, { id: 'b', updatedAt: 50 }, { id: 'n', createdAt: 7 }];
+  const up = Calc.pendingUploads(local, { z: 9, y: 9, w: 9 }, remote);
+  assert.deepEqual(up.map((d) => [d.id, d.updatedAt, !!d.deleted]), [['a', 30, false], ['n', 7, false], ['z', 9, true]]);
+});
