@@ -126,3 +126,18 @@ test('toCSV de passagem traz volta, compra, companhia, localizador e parcelas', 
   const row = Calc.toCSV([flight], '2026-10-19').replace('\ufeff', '').split('\r\n')[1];
   assert.equal(row, '18/10/2026;23/10/2026;;Passagem;;São Paulo;Nubank;3x;Sim;01/09/2026;LATAM;XPTO12;600,00;1200,01');
 });
+
+test('mergeExpenses acrescenta sem duplicar e descarta itens inválidos', () => {
+  const existing = [{ id: 'a', date: '2026-10-14', amount: 100 }];
+  const incoming = [
+    { id: 'a', date: '2026-10-14', amount: 999 }, // já existe
+    { id: 'b', date: '2026-10-20', amount: 0 },   // valor zero é válido
+    { id: 'b', date: '2026-10-20', amount: 0 },   // repetido no próprio arquivo
+    { id: 'c', date: '20/10/2026', amount: 5 },   // data em formato errado
+  ];
+  const r = Calc.mergeExpenses(existing, incoming);
+  assert.deepEqual(r.expenses.map((e) => e.id), ['a', 'b']);
+  assert.equal(r.expenses[0].amount, 100);
+  assert.equal(r.added, 1);
+  assert.equal(r.skipped, 3);
+});

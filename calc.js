@@ -17,7 +17,7 @@
   ];
 
   // Formas de pagamento de versões anteriores do app, só para exibição.
-  const LEGACY_PAYMENTS = { pessoal: 'Pessoal', corporativo: 'Corporativo' };
+  const LEGACY_PAYMENTS = { pessoal: 'Pessoal', corporativo: 'Corporativo', outro: 'Outro' };
 
   const CITIES = ['Rio de Janeiro', 'São Paulo'];
   const AIRLINES = ['LATAM', 'GOL', 'Azul'];
@@ -207,9 +207,17 @@
     return '\ufeff' + [header.join(';'), ...rows].join('\r\n');
   }
 
+  // Acrescenta despesas importadas sem duplicar: ids já existentes são ignorados.
+  function mergeExpenses(existing, incoming) {
+    const ids = new Set(existing.map((e) => e.id));
+    const valid = incoming.filter((e) => e && e.id && /^\d{4}-\d{2}-\d{2}$/.test(e.date) && Number.isInteger(e.amount));
+    const added = valid.filter((e) => !ids.has(e.id) && ids.add(e.id));
+    return { expenses: [...existing, ...added], added: added.length, skipped: incoming.length - added.length };
+  }
+
   const api = {
     CATEGORIES, PAYMENTS, CITIES, AIRLINES, INSTALLMENT_PAYMENTS, MAX_INSTALLMENTS, installmentsOf, hasReturnLeg, paymentLabel, parseDate, toISODate, addDays, weekStart, weekDays,
-    nights, allocate, weekShare, expensesInWeek, parseAmount, formatMoney, summarize, toCSV,
+    nights, allocate, weekShare, mergeExpenses, expensesInWeek, parseAmount, formatMoney, summarize, toCSV,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

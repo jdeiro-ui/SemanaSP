@@ -3,7 +3,7 @@
     hasReturnLeg, paymentLabel, nights, weekShare, toISODate, addDays, weekStart, weekDays, parseDate,
     expensesInWeek, parseAmount, formatMoney, summarize, toCSV } = Calc;
 
-  const APP_VERSION = '2026.10.17-6';
+  const APP_VERSION = '2026.10.18-1';
   const STORAGE_KEY = 'semanasp:v1';
   const $ = (sel) => document.querySelector(sel);
 
@@ -155,7 +155,7 @@
     const thisWeek = weekStart(today()) === currentWeek;
     const last = state.expenses[state.expenses.length - 1];
     const src = expense || draft || {};
-    form.amount.value = src.amount ? (src.amount / 100).toFixed(2).replace('.', ',') : '';
+    form.amount.value = Number.isFinite(src.amount) ? (src.amount / 100).toFixed(2).replace('.', ',') : '';
     form.date.value = src.date || (thisWeek ? today() : currentWeek);
     form.description.value = src.description || '';
     form.checkout.value = src.checkout || '';
@@ -289,9 +289,9 @@
 
   form.addEventListener('submit', (ev) => {
     const amount = parseAmount(form.amount.value);
-    if (!(amount > 0)) {
+    if (!(amount >= 0)) {
       ev.preventDefault();
-      form.amount.setCustomValidity('Informe um valor maior que zero');
+      form.amount.setCustomValidity('Informe o valor');
       form.amount.reportValidity();
       return;
     }
@@ -392,6 +392,28 @@
   $('#backup-export').addEventListener('click', () => {
     download(`semanasp_backup_${today()}.json`, JSON.stringify(state, null, 2), 'application/json');
   });
+  // Importar acrescenta despesas (ex.: vindas de planilha) sem apagar as atuais.
+  $('#merge-import').addEventListener('change', async (ev) => {
+    const file = ev.target.files[0];
+    ev.target.value = '';
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      if (!Array.isArray(data.expenses)) throw new Error('formato inválido');
+      const result = Calc.mergeExpenses(state.expenses, data.expenses);
+      if (!result.added) return alert('Nenhuma despesa nova: todas já estavam no app.');
+      const skipped = result.skipped ? ` (${result.skipped} já existiam e serão ignoradas)` : '';
+      if (!confirm(`Adicionar ${result.added} despesas${skipped}? As despesas atuais são mantidas.`)) return;
+      state.expenses = result.expenses;
+      save();
+      settingsDialog.close();
+      render();
+      alert(`${result.added} despesas importadas.`);
+    } catch (err) {
+      alert('Não foi possível ler o arquivo: ' + err.message);
+    }
+  });
+
   $('#backup-import').addEventListener('change', async (ev) => {
     const file = ev.target.files[0];
     ev.target.value = '';
