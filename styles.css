@@ -13,8 +13,7 @@
   --cat-passagem: #eb6834;
   --cat-alimentacao: #1baf7a;
   --cat-transporte: #eda100;
-  --cat-combustivel: #e87ba4;
-  --cat-outros: #008300;
+  --cat-outros: #e87ba4;
   --grid: #e8e8ef;
   --axis: #c3c2cc;
   color-scheme: light dark;
@@ -32,8 +31,7 @@
     --cat-passagem: #d95926;
     --cat-alimentacao: #199e70;
     --cat-transporte: #c98500;
-    --cat-combustivel: #d55181;
-    --cat-outros: #008300;
+    --cat-outros: #d55181;
     --grid: #2a2b36;
     --axis: #3a3c4a;
   }
@@ -225,3 +223,8 @@ table.data th:first-child, table.data td:first-child { text-align: left; }
 table.data th { color: var(--muted); font-weight: 500; }
 table.data tr.future td { color: var(--muted); }
 .bars .sub { font-size: .75rem; color: var(--muted); margin-top: 2px; }
+
+/* ---------- Modo privado e localização ---------- */
+#btn-privacy[aria-pressed=true] { background: rgb(255 255 255 / .22); border-radius: 10px; }
+.privacy-banner { background: var(--line); color: var(--muted); font-size: .78rem; text-align: center; padding: 4px; border-radius: 8px; margin-bottom: 8px; }
+.geo-hint { font-size: .75rem; color: var(--muted); margin: 6px 0 0; }

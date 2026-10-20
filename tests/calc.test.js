@@ -208,3 +208,18 @@ test('pendingUploads: sobe o que é novo ou mais recente, inclusive exclusões',
   const up = Calc.pendingUploads(local, { z: 9, y: 9, w: 9 }, remote);
   assert.deepEqual(up.map((d) => [d.id, d.updatedAt, !!d.deleted]), [['a', 30, false], ['n', 7, false], ['z', 9, true]]);
 });
+
+test('cityFromCoords reconhece Rio e São Paulo (inclusive aeroportos) e ignora o resto', () => {
+  assert.equal(Calc.cityFromCoords(-22.9797, -43.2306), 'Rio de Janeiro'); // Gávea
+  assert.equal(Calc.cityFromCoords(-22.8100, -43.2506), 'Rio de Janeiro'); // Galeão (GIG)
+  assert.equal(Calc.cityFromCoords(-22.9105, -43.1631), 'Rio de Janeiro'); // Santos Dumont
+  assert.equal(Calc.cityFromCoords(-23.6261, -46.6564), 'São Paulo');      // Congonhas
+  assert.equal(Calc.cityFromCoords(-23.4356, -46.4731), 'São Paulo');      // Guarulhos
+  assert.equal(Calc.cityFromCoords(-22.9056, -47.0608), null);             // Campinas
+  assert.equal(Calc.cityFromCoords(-19.9167, -43.9345), null);             // Belo Horizonte
+});
+
+test('Combustível saiu das categorias', () => {
+  assert.equal(Calc.CATEGORIES.some((c) => c.id === 'combustivel'), false);
+  assert.equal(Calc.RETIRED_CATEGORIES.combustivel, 'outros');
+});

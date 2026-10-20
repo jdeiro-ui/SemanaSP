@@ -19,12 +19,15 @@
   };
 
   // R$ 1.234 / R$ 12 mil — para eixos e espaços curtos.
+  const MASK = 'R$ •••';
+  const fm = (cents) => window.Privacy.money(cents);
   const compact = (cents) => {
+    if (window.Privacy.on) return '•••';
     const v = cents / 100;
     if (v >= 1000) return `R$ ${(v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: v >= 10000 ? 0 : 1 })} mil`;
     return `R$ ${Math.round(v)}`;
   };
-  const money0 = (cents) => formatMoney(Math.round(cents / 100) * 100).replace(/,00$/, '');
+  const money0 = (cents) => (window.Privacy.on ? MASK : formatMoney(Math.round(cents / 100) * 100).replace(/,00$/, ''));
 
   // ---------- Abas ----------
   function showTab(tab) {
@@ -155,10 +158,10 @@
     el.querySelectorAll('.col').forEach((g) => g.classList.toggle('active', Number(g.dataset.i) === i));
     if (!m) { tip.hidden = true; return; }
     const rows = CHART_ORDER.filter((c) => m.byCategory[c] > 0).reverse().map((c) =>
-      `<div class="row"><span><i style="background:${color(c)}"></i>${catLabel(c)}</span>${formatMoney(m.byCategory[c])}</div>`).join('');
-    const status = m.scheduled && m.done ? ` · ${formatMoney(m.scheduled)} agendado` : m.scheduled ? ' · agendado' : '';
+      `<div class="row"><span><i style="background:${color(c)}"></i>${catLabel(c)}</span>${fm(m.byCategory[c])}</div>`).join('');
+    const status = m.scheduled && m.done ? ` · ${fm(m.scheduled)} agendado` : m.scheduled ? ' · agendado' : '';
     tip.innerHTML = `<b>${monthName(m.key, 'long')} ${m.key.slice(0, 4)}${status}</b>${rows || '<span class="muted">Sem gastos</span>'}`
-      + (rows ? `<div class="row tot"><span>Total</span>${formatMoney(m.total)}</div>` : '');
+      + (rows ? `<div class="row tot"><span>Total</span>${fm(m.total)}</div>` : '');
     tip.hidden = false;
     const band = Number(el.dataset.band), left = Number(el.dataset.left);
     const cx = left + band * i + band / 2;
@@ -186,7 +189,7 @@
   function renderMonthTable(r) {
     const rows = r.months.filter((m) => m.total > 0).map((m) => `
       <tr class="${m.future ? 'future' : ''}"><td>${monthName(m.key)}/${m.key.slice(2, 4)}</td>
-      <td>${m.done ? formatMoney(m.done) : '—'}</td><td>${m.scheduled ? formatMoney(m.scheduled) : '—'}</td></tr>`).join('');
+      <td>${m.done ? fm(m.done) : '—'}</td><td>${m.scheduled ? fm(m.scheduled) : '—'}</td></tr>`).join('');
     $('#month-table').innerHTML = rows
       ? `<table class="data"><thead><tr><th>Mês</th><th>Realizado</th><th>Agendado</th></tr></thead><tbody>${rows}</tbody></table>`
       : '<p class="muted">Sem despesas no período.</p>';
@@ -198,11 +201,11 @@
     $('#stats-categories').innerHTML = cats.map((c) => {
       const share = (r.byCategory[c] / r.total) * 100;
       const pct = share > 0 && share < 1 ? '<1' : Math.round(share);
-      const extra = c === 'hospedagem' && r.avgPerNight ? ` · ${formatMoney(r.avgPerNight)} por noite` : '';
+      const extra = c === 'hospedagem' && r.avgPerNight ? ` · ${fm(r.avgPerNight)} por noite` : '';
       return `<li>
-        <div class="label"><span>${(CATEGORIES.find((x) => x.id === c) || {}).icon || ''} ${catLabel(c)}</span><b>${formatMoney(r.byCategory[c])} <span class="muted">${pct}%</span></b></div>
+        <div class="label"><span>${(CATEGORIES.find((x) => x.id === c) || {}).icon || ''} ${catLabel(c)}</span><b>${fm(r.byCategory[c])} <span class="muted">${pct}%</span></b></div>
         <div class="track"><div class="fill" style="width:${(r.byCategory[c] / max) * 100}%;background:${color(c)}"></div></div>
-        <div class="sub">${formatMoney(r.avgPerTripByCategory[c])} por viagem${extra}</div>
+        <div class="sub">${fm(r.avgPerTripByCategory[c])} por viagem${extra}</div>
       </li>`;
     }).join('') || '<li class="muted">Nenhum gasto realizado no período.</li>';
   }

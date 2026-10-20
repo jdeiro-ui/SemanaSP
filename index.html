@@ -15,6 +15,7 @@
   <header class="topbar">
     <h1>SemanaSP</h1>
     <div>
+      <button id="btn-privacy" class="icon-btn" aria-pressed="false" aria-label="Ocultar valores" title="Ocultar valores">👁️</button>
       <label class="icon-btn" aria-label="Ler print de recibo" title="Ler print de recibo">📷
         <input id="scan-input" type="file" accept="image/*" hidden>
       </label>
@@ -23,6 +24,7 @@
   </header>
 
   <main>
+    <p id="privacy-banner" class="privacy-banner" hidden>🙈 Valores ocultos · toque no 👁️ para mostrar</p>
     <nav class="tabs" role="tablist">
       <button role="tab" data-tab="week" aria-selected="true">Semana</button>
       <button role="tab" data-tab="stats" aria-selected="false">Análises</button>
@@ -156,6 +158,7 @@
       <fieldset>
         <legend>Local</legend>
         <div id="city-picker" class="chips"></div>
+        <p id="geo-hint" class="geo-hint" hidden></p>
         <input name="city" list="cities" placeholder="Digite o local" maxlength="60" class="city-other" hidden>
         <datalist id="cities"></datalist>
       </fieldset>
@@ -189,6 +192,9 @@
       <h2>Configurações</h2>
       <label>Orçamento semanal (R$)
         <input name="budget" inputmode="decimal" placeholder="Sem limite" autocomplete="off">
+      </label>
+      <label class="check">
+        <input name="geo" type="checkbox"> Marcar a cidade pela localização do celular
       </label>
       <h3>Backup na nuvem</h3>
       <p id="cloud-status" class="muted">Carregando…</p>

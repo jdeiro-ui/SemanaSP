@@ -4,14 +4,16 @@
     { id: 'hospedagem', label: 'Hospedagem', icon: '🏨' },
     { id: 'alimentacao', label: 'Alimentação', icon: '🍽️' },
     { id: 'transporte', label: 'Transporte', icon: '🚕' },
-    { id: 'combustivel', label: 'Combustível', icon: '⛽' },
     { id: 'passagem', label: 'Passagem', icon: '✈️' },
     { id: 'outros', label: 'Outros', icon: '📎' },
   ];
 
   // Ordem fixa das categorias nos gráficos (empilhamento e legenda). As cores
   // (--cat-<id> em styles.css) seguem esta ordem numa paleta validada para daltonismo.
-  const CHART_ORDER = ['hospedagem', 'passagem', 'alimentacao', 'transporte', 'combustivel', 'outros'];
+  const CHART_ORDER = ['hospedagem', 'passagem', 'alimentacao', 'transporte', 'outros'];
+
+  // Categorias que deixaram de existir e para onde as despesas antigas vão.
+  const RETIRED_CATEGORIES = { combustivel: 'outros' };
 
   const PAYMENTS = [
     { id: 'nubank', label: 'Nubank', color: '#8a05be' },
@@ -24,6 +26,29 @@
   const LEGACY_PAYMENTS = { pessoal: 'Pessoal', corporativo: 'Corporativo', outro: 'Outro' };
 
   const CITIES = ['Rio de Janeiro', 'São Paulo'];
+
+  // Centro e raio (km) das cidades fixas, para reconhecer a cidade pela localização
+  // sem consultar serviço externo. Inclui aeroportos (GIG, SDU, CGH, GRU).
+  const CITY_AREAS = [
+    { name: 'Rio de Janeiro', lat: -22.9068, lon: -43.1729, radiusKm: 45 },
+    { name: 'São Paulo', lat: -23.5505, lon: -46.6333, radiusKm: 45 },
+  ];
+
+  function distanceKm(lat1, lon1, lat2, lon2) {
+    const rad = (d) => (d * Math.PI) / 180;
+    const a = Math.sin(rad(lat2 - lat1) / 2) ** 2
+      + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(rad(lon2 - lon1) / 2) ** 2;
+    return 2 * 6371 * Math.asin(Math.sqrt(a));
+  }
+
+  // Cidade fixa mais próxima dentro do raio, ou null.
+  function cityFromCoords(lat, lon) {
+    const near = CITY_AREAS
+      .map((c) => ({ name: c.name, d: distanceKm(lat, lon, c.lat, c.lon), r: c.radiusKm }))
+      .filter((c) => c.d <= c.r)
+      .sort((a, b) => a.d - b.d)[0];
+    return near ? near.name : null;
+  }
   const AIRLINES = ['LATAM', 'GOL', 'Azul'];
 
   // Formas de pagamento que aceitam parcelamento.
@@ -340,7 +365,7 @@
   }
 
   const api = {
-    CATEGORIES, CHART_ORDER, PAYMENTS, analytics, yearsWithData, monthRange, CITIES, AIRLINES, INSTALLMENT_PAYMENTS, MAX_INSTALLMENTS, installmentsOf, hasReturnLeg, paymentLabel, parseDate, toISODate, addDays, weekStart, weekDays,
+    CATEGORIES, CHART_ORDER, RETIRED_CATEGORIES, PAYMENTS, cityFromCoords, analytics, yearsWithData, monthRange, CITIES, AIRLINES, INSTALLMENT_PAYMENTS, MAX_INSTALLMENTS, installmentsOf, hasReturnLeg, paymentLabel, parseDate, toISODate, addDays, weekStart, weekDays,
     nights, allocate, weekShare, mergeExpenses, syncMerge, pendingUploads, expensesInWeek, parseAmount, formatMoney, summarize, toCSV,
   };
 

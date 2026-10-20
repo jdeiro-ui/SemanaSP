@@ -3,7 +3,7 @@
     hasReturnLeg, paymentLabel, nights, weekShare, toISODate, addDays, weekStart, weekDays, parseDate,
     expensesInWeek, parseAmount, formatMoney, summarize, toCSV } = Calc;
 
-  const APP_VERSION = '2026.10.18-4';
+  const APP_VERSION = '2026.10.20-1';
   const STORAGE_KEY = 'semanasp:v1';
   const $ = (sel) => document.querySelector(sel);
 
@@ -24,6 +24,26 @@
 
   const state = load();
   const today = () => toISODate(new Date());
+
+  // Despesas em categorias que saíram do app (ex.: Combustível) passam para a substituta.
+  let migrated = false;
+  for (const e of state.expenses) {
+    const to = Calc.RETIRED_CATEGORIES[e.category];
+    if (to) { e.category = to; e.updatedAt = Date.now(); migrated = true; }
+  }
+
+  // Preferências deste aparelho (não vão para a nuvem).
+  const pref = (key, fallback) => {
+    try { const v = localStorage.getItem(key); return v === null ? fallback : v === '1'; } catch (_) { return fallback; }
+  };
+  const setPref = (key, on) => { try { localStorage.setItem(key, on ? '1' : '0'); } catch (_) { /* sem armazenamento */ } };
+
+  // Modo privado: troca os valores da tela por "R$ •••" (formulário e CSV seguem com os reais).
+  window.Privacy = {
+    on: pref('semanasp:privacy', false),
+    money: (cents) => (window.Privacy.on ? 'R$ •••' : formatMoney(cents)),
+  };
+  const money = (cents) => window.Privacy.money(cents);
   let currentWeek = weekStart(today());
   let editingId = null;
   let selectedCategory = CATEGORIES[0].id;
@@ -43,9 +63,9 @@
     const items = expensesInWeek(state.expenses, currentWeek);
     const s = summarize(items, state.budget, currentWeek);
 
-    $('#total').textContent = formatMoney(s.total);
-    $('#reimbursable').textContent = formatMoney(s.reimbursable);
-    $('#not-reimbursable').textContent = formatMoney(s.notReimbursable);
+    $('#total').textContent = money(s.total);
+    $('#reimbursable').textContent = money(s.reimbursable);
+    $('#not-reimbursable').textContent = money(s.notReimbursable);
 
     const budgetEl = $('#budget');
     if (state.budget > 0) {
@@ -53,8 +73,8 @@
       const over = s.remaining < 0;
       budgetEl.className = 'budget' + (over ? ' over' : '');
       budgetEl.innerHTML = `
-        ${over ? `Orçamento estourado em ${formatMoney(-s.remaining)}`
-               : `Restam ${formatMoney(s.remaining)} de ${formatMoney(state.budget)}`}
+        ${over ? `Orçamento estourado em ${money(-s.remaining)}`
+               : `Restam ${money(s.remaining)} de ${money(state.budget)}`}
         <div class="track"><div class="fill" style="width:${pct}%"></div></div>`;
       budgetEl.hidden = false;
     } else {
@@ -67,7 +87,7 @@
       .sort((a, b) => s.byCategory[b.id] - s.byCategory[a.id])
       .map((c) => `
         <li>
-          <div class="label"><span>${c.icon} ${c.label}</span><b>${formatMoney(s.byCategory[c.id])}</b></div>
+          <div class="label"><span>${c.icon} ${c.label}</span><b>${money(s.byCategory[c.id])}</b></div>
           <div class="track"><div class="fill" style="width:${(s.byCategory[c.id] / maxCat) * 100}%;background:var(--cat-${c.id})"></div></div>
         </li>`).join('') || '<li class="muted">Sem gastos.</li>';
 
@@ -81,7 +101,7 @@
         const p = PAYMENTS.find((x) => x.id === id);
         return `
         <li>
-          <div class="label"><span>${escapeHtml(paymentLabel(id))}</span><b>${formatMoney(s.byPayment[id])}</b></div>
+          <div class="label"><span>${escapeHtml(paymentLabel(id))}</span><b>${money(s.byPayment[id])}</b></div>
           <div class="track"><div class="fill" style="width:${(s.byPayment[id] / maxPay) * 100}%;background:${p ? p.color : '#64748b'}"></div></div>
         </li>`;
       }).join('') || '<li class="muted">Sem gastos.</li>';
@@ -92,7 +112,7 @@
       const v = s.byDay[d] || 0;
       return `
         <div class="day${d === today() ? ' today' : ''}">
-          <span class="val">${v ? Math.round(v / 100) : ''}</span>
+          <span class="val">${v ? (window.Privacy.on ? '•••' : Math.round(v / 100)) : ''}</span>
           <div class="col" style="height:${(v / maxDay) * 100}%"></div>
           <span class="name">${weekdayShort(d)}</span>
         </div>`;
@@ -114,7 +134,7 @@
       let partial = '';
       if (share.amount !== e.amount) {
         const part = n ? `${share.nights} de ${n} noites` : weekShare({ ...e, returnDate: null }, currentWeek).amount ? 'Ida' : 'Volta';
-        partial = `<div class="part">${part} nesta semana · total ${formatMoney(e.amount)}</div>`;
+        partial = `<div class="part">${part} nesta semana · total ${money(e.amount)}</div>`;
       }
       const inst = installmentsOf(e);
       const tags = `<span class="tags"><span class="tag">${escapeHtml(paymentLabel(e.payment))}${inst > 1 ? ` ${inst}x` : ''}</span>`
@@ -128,7 +148,7 @@
             <div class="desc">${escapeHtml(title)}</div>
             <div class="muted">${when}${e.city ? ' · ' + escapeHtml(e.city) : ''}</div>${partial}
           </div>
-          <div class="amt">${formatMoney(share.amount)}${tags}</div>
+          <div class="amt">${money(share.amount)}${tags}</div>
         </li>`;
     }).join('');
   }
@@ -178,6 +198,9 @@
     const otherCities = [...new Set(state.expenses.map((e) => e.city))].filter((c) => c && !CITIES.includes(c));
     $('#cities').innerHTML = otherCities.map((c) => `<option value="${escapeHtml(c)}">`).join('');
     setCity(expense ? expense.city : src.city || (last ? last.city : CITIES[0]));
+    cityTouched = false;
+    $('#geo-hint').hidden = true;
+    if (!expense && !(draft && draft.city)) suggestCityFromLocation();
 
     dialog.showModal();
     if (!expense && !draft) form.amount.focus();
@@ -187,6 +210,38 @@
 
   // Local: atalhos para as cidades fixas ou "Outro", que abre o campo para digitar.
   let cityIsOther = false;
+  let cityTouched = false; // escolhido à mão: a localização não sobrescreve
+  form.city.addEventListener('input', () => { cityTouched = true; });
+
+  // Cidade pela localização: Rio/SP pela distância (sem serviço externo); outras
+  // cidades pelo OpenStreetMap. A posição é reaproveitada por 10 minutos.
+  let geoCache = null;
+  function locateCity() {
+    if (!pref('semanasp:geo', true) || !navigator.geolocation) return Promise.resolve(null);
+    if (geoCache && Date.now() - geoCache.at < 10 * 60 * 1000) return Promise.resolve(geoCache.city);
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(async ({ coords }) => {
+        let city = Calc.cityFromCoords(coords.latitude, coords.longitude);
+        if (!city) {
+          try {
+            const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&accept-language=pt-BR&lat=${coords.latitude}&lon=${coords.longitude}`;
+            const a = (await (await fetch(url)).json()).address || {};
+            city = a.city || a.town || a.village || a.municipality || null;
+          } catch (_) { city = null; }
+        }
+        geoCache = { city, at: Date.now() };
+        resolve(city);
+      }, () => resolve(null), { timeout: 15000, maximumAge: 10 * 60 * 1000 });
+    });
+  }
+
+  async function suggestCityFromLocation() {
+    const city = await locateCity();
+    if (!city || cityTouched || !dialog.open || editingId) return;
+    setCity(city);
+    $('#geo-hint').textContent = `📍 ${city} · pela sua localização`;
+    $('#geo-hint').hidden = false;
+  }
 
   function setCity(city, other = !!city && !CITIES.includes(city)) {
     cityIsOther = other;
@@ -201,6 +256,8 @@
   $('#city-picker').addEventListener('click', (ev) => {
     const btn = ev.target.closest('[data-city]');
     if (!btn) return;
+    cityTouched = true;
+    $('#geo-hint').hidden = true;
     if (btn.dataset.city !== 'Outro') return setCity(btn.dataset.city);
     setCity(cityIsOther ? form.city.value : '', true);
     form.city.focus();
@@ -383,14 +440,18 @@
 
   $('#btn-settings').addEventListener('click', () => {
     settingsForm.budget.value = state.budget ? (state.budget / 100).toFixed(2).replace('.', ',') : '';
+    settingsForm.geo.checked = pref('semanasp:geo', true);
     settingsDialog.showModal();
   });
   $('#cancel-settings').addEventListener('click', () => settingsDialog.close());
   settingsForm.addEventListener('submit', () => {
     const v = parseAmount(settingsForm.budget.value);
-    state.budget = v > 0 ? v : 0;
-    state.budgetUpdatedAt = Date.now();
-    save();
+    setPref('semanasp:geo', settingsForm.geo.checked);
+    if ((v > 0 ? v : 0) !== state.budget) {
+      state.budget = v > 0 ? v : 0;
+      state.budgetUpdatedAt = Date.now();
+      save();
+    }
     render();
   });
 
@@ -547,6 +608,26 @@
     },
   };
 
+  // ---------- Modo privado ----------
+  function applyPrivacy() {
+    const on = window.Privacy.on;
+    const btn = $('#btn-privacy');
+    btn.textContent = on ? '🙈' : '👁️';
+    btn.setAttribute('aria-pressed', String(on));
+    btn.setAttribute('aria-label', on ? 'Mostrar valores' : 'Ocultar valores');
+    btn.title = btn.getAttribute('aria-label');
+    $('#privacy-banner').hidden = !on;
+  }
+  $('#btn-privacy').addEventListener('click', () => {
+    window.Privacy.on = !window.Privacy.on;
+    setPref('semanasp:privacy', window.Privacy.on);
+    applyPrivacy();
+    render();
+    window.dispatchEvent(new Event('semanasp:remote')); // redesenha as Análises
+  });
+  applyPrivacy();
+
   render();
+  if (migrated) save();
   if ('caches' in window) consumeSharedImage();
 })();
