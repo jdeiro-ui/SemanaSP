@@ -314,6 +314,42 @@
     };
   }
 
+  // Orçado x realizado: cada semana de viagem (semana encerrada com gasto) é comparada
+  // ao orçamento semanal. A semana entra no mês da sua segunda-feira.
+  // `year`: número do ano, ou null para todo o histórico.
+  function budgetReport(expenses, year, budgetCents, todayIso) {
+    const weeks = {};
+    for (const e of expenses) {
+      for (const a of allocate(e)) {
+        const w = weekStart(a.date);
+        weeks[w] = (weeks[w] || 0) + a.amount;
+      }
+    }
+    const done = Object.entries(weeks)
+      .filter(([w, total]) => total > 0 && addDays(w, 6) < todayIso && (!year || Number(w.slice(0, 4)) === year))
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([start, spent]) => ({ start, spent, diff: spent - budgetCents }));
+    const byMonth = {};
+    for (const w of done) {
+      const m = byMonth[monthKey(w.start)] || (byMonth[monthKey(w.start)] = { key: monthKey(w.start), trips: 0, spent: 0, over: 0 });
+      m.trips++;
+      m.spent += w.spent;
+      if (w.diff > 0) m.over++;
+    }
+    const months = Object.values(byMonth).sort((a, b) => (a.key < b.key ? -1 : 1))
+      .map((m) => ({ ...m, budget: m.trips * budgetCents, diff: m.spent - m.trips * budgetCents }));
+    const spent = done.reduce((s, w) => s + w.spent, 0);
+    return {
+      weeks: done,
+      months,
+      trips: done.length,
+      spent,
+      budget: done.length * budgetCents,
+      diff: spent - done.length * budgetCents,
+      overCount: done.filter((w) => w.diff > 0).length,
+    };
+  }
+
   // Anos com algum gasto, do mais recente para o mais antigo.
   function yearsWithData(expenses) {
     const ys = new Set();
@@ -365,7 +401,7 @@
   }
 
   const api = {
-    CATEGORIES, CHART_ORDER, RETIRED_CATEGORIES, PAYMENTS, cityFromCoords, analytics, yearsWithData, monthRange, CITIES, AIRLINES, INSTALLMENT_PAYMENTS, MAX_INSTALLMENTS, installmentsOf, hasReturnLeg, paymentLabel, parseDate, toISODate, addDays, weekStart, weekDays,
+    CATEGORIES, CHART_ORDER, RETIRED_CATEGORIES, PAYMENTS, cityFromCoords, analytics, budgetReport, yearsWithData, monthRange, CITIES, AIRLINES, INSTALLMENT_PAYMENTS, MAX_INSTALLMENTS, installmentsOf, hasReturnLeg, paymentLabel, parseDate, toISODate, addDays, weekStart, weekDays,
     nights, allocate, weekShare, mergeExpenses, syncMerge, pendingUploads, expensesInWeek, parseAmount, formatMoney, summarize, toCSV,
   };
 

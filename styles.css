@@ -228,3 +228,29 @@ table.data tr.future td { color: var(--muted); }
 #btn-privacy[aria-pressed=true] { background: rgb(255 255 255 / .22); border-radius: 10px; }
 .privacy-banner { background: var(--line); color: var(--muted); font-size: .78rem; text-align: center; padding: 4px; border-radius: 8px; margin-bottom: 8px; }
 .geo-hint { font-size: .75rem; color: var(--muted); margin: 6px 0 0; }
+
+/* ---------- Quadros recolhíveis ---------- */
+.card-head { cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
+.card-head h2, h2.card-head { display: flex; align-items: center; gap: 6px; }
+h2.card-head::after { margin-left: auto; }
+h2.card-head, .card-head > h2 { margin-bottom: 12px; }
+.card-head h2::after, h2.card-head::after { content: '▾'; font-size: .8rem; color: var(--muted); transition: transform .15s; }
+.card.collapsed { padding-bottom: 14px; }
+.card.collapsed > :not(.card-head) { display: none; }
+.card.collapsed .card-head > :not(h2) { display: none; }
+.card.collapsed h2.card-head, .card.collapsed .card-head > h2 { margin-bottom: 0; }
+.card.collapsed .card-head h2::after, .card.collapsed h2.card-head::after { transform: rotate(-90deg); }
+
+/* ---------- Orçado x realizado ---------- */
+.budget-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.budget-head b { font-size: 1.3rem; }
+.delta-good { color: #006300; }
+.delta-bad { color: #c22d2d; }
+@media (prefers-color-scheme: dark) { .delta-good { color: #2fbf2f; } .delta-bad { color: #f07070; } }
+.budget-bars { list-style: none; padding: 0; margin: 10px 0 0; }
+.budget-bars li { display: grid; grid-template-columns: 48px 1fr auto; align-items: center; gap: 8px; font-size: .8rem; margin-bottom: 6px; }
+.budget-bars .track { position: relative; height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; }
+.budget-bars .fill { position: absolute; top: 0; bottom: 0; left: 0; background: var(--cat-hospedagem); border-radius: 0 5px 5px 0; }
+.budget-bars .fill.over { background: #d03b3b; }
+.budget-bars .mark { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--text); }
+.budget-bars .val { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 84px; }

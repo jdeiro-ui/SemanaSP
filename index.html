@@ -52,22 +52,22 @@
       </div>
     </section>
 
-    <section class="card">
+    <section class="card" data-collapse="week-category">
       <h2>Por categoria</h2>
       <ul id="by-category" class="bars"></ul>
     </section>
 
-    <section class="card">
+    <section class="card" data-collapse="week-payment">
       <h2>Por forma de pagamento</h2>
       <ul id="by-payment" class="bars"></ul>
     </section>
 
-    <section class="card">
+    <section class="card" data-collapse="week-day">
       <h2>Por dia</h2>
       <div id="by-day" class="days"></div>
     </section>
 
-    <section class="card">
+    <section class="card" data-collapse="week-list">
       <div class="row-between">
         <h2>Lançamentos</h2>
         <button id="export-csv" class="link-btn">Exportar CSV</button>
@@ -87,7 +87,12 @@
         <div class="kpi"><span class="muted">Já agendado</span><b id="kpi-sched"></b><small class="muted">compras para datas futuras</small></div>
       </section>
 
-      <section class="card">
+      <section class="card" data-collapse="stats-budget">
+        <h2>Orçado x realizado</h2>
+        <div id="budget-report"></div>
+      </section>
+
+      <section class="card" data-collapse="stats-month">
         <h2>Gasto por mês</h2>
         <div id="month-legend" class="legend"></div>
         <div id="month-chart" class="chart"></div>
@@ -97,13 +102,13 @@
         </details>
       </section>
 
-      <section class="card">
+      <section class="card" data-collapse="stats-category">
         <h2>Por categoria</h2>
         <p class="muted small">Total realizado e média por viagem</p>
         <ul id="stats-categories" class="bars"></ul>
       </section>
 
-      <section class="card">
+      <section class="card" data-collapse="stats-year">
         <h2>Por ano</h2>
         <div id="year-table"></div>
       </section>

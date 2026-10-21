@@ -223,3 +223,19 @@ test('Combustível saiu das categorias', () => {
   assert.equal(Calc.CATEGORIES.some((c) => c.id === 'combustivel'), false);
   assert.equal(Calc.RETIRED_CATEGORIES.combustivel, 'outros');
 });
+
+test('budgetReport compara cada semana de viagem encerrada com o orçamento', () => {
+  const ex = [
+    { id: 'a', date: '2026-09-15', category: 'alimentacao', amount: 120000 }, // semana 14/09: 1.200 (acima de 1.000)
+    { id: 'b', date: '2026-09-29', category: 'alimentacao', amount: 80000 },  // semana 28/09: 800 (abaixo), conta em setembro
+    { id: 'c', date: '2026-10-06', category: 'alimentacao', amount: 90000 },  // semana 05/10: 900
+    { id: 'd', date: '2026-10-20', category: 'alimentacao', amount: 50000 },  // semana 19/10: ainda em andamento
+    { id: 'e', date: '2026-08-04', category: 'passagem', amount: 0 },         // R$ 0: não é viagem
+    { id: 'f', date: '2025-12-02', category: 'alimentacao', amount: 70000 },  // outro ano
+  ];
+  const r = Calc.budgetReport(ex, 2026, 100000, '2026-10-21');
+  assert.deepEqual([r.trips, r.spent, r.budget, r.diff, r.overCount], [3, 290000, 300000, -10000, 1]);
+  assert.deepEqual(r.months.map((m) => [m.key, m.trips, m.spent, m.budget, m.diff, m.over]),
+    [['2026-09', 2, 200000, 200000, 0, 1], ['2026-10', 1, 90000, 100000, -10000, 0]]);
+  assert.equal(Calc.budgetReport(ex, null, 100000, '2026-10-21').trips, 4);
+});

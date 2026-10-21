@@ -1,7 +1,7 @@
 // Aba "Análises": indicadores, gasto por mês (colunas empilhadas por categoria),
 // médias por categoria e tabela por ano. Lê as despesas salvas pelo app.js.
 (function () {
-  const { CATEGORIES, CHART_ORDER, analytics, yearsWithData, formatMoney, toISODate } = Calc;
+  const { CATEGORIES, CHART_ORDER, analytics, budgetReport, yearsWithData, formatMoney, toISODate } = Calc;
   const $ = (sel) => document.querySelector(sel);
   const STORAGE_KEY = 'semanasp:v1';
   const catLabel = (id) => (CATEGORIES.find((c) => c.id === id) || { label: id }).label;
@@ -9,9 +9,10 @@
   let selectedYear = null; // null = todo o histórico
   let lastResult = null;
 
-  function expenses() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)).expenses || []; } catch (_) { return []; }
+  function saved() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch (_) { return {}; }
   }
+  const expenses = () => saved().expenses || [];
 
   const monthName = (key, style = 'short') => {
     const [y, m] = key.split('-').map(Number);
@@ -66,11 +67,51 @@
     $('#kpi-trip-sub').textContent = 'semana com gasto';
     $('#kpi-sched').textContent = money0(r.scheduled);
 
+    renderBudget(all, today);
     renderLegend(r);
     renderChart(r);
     renderMonthTable(r);
     renderCategories(r);
     renderYears(all, years, today);
+  }
+
+  // Orçado x realizado: cada semana de viagem encerrada contra o orçamento semanal.
+  function renderBudget(all, today) {
+    const el = $('#budget-report');
+    const weekly = saved().budget || 0;
+    if (!weekly) {
+      el.innerHTML = '<p class="muted">Defina um orçamento semanal em ⚙️ para comparar o gasto de cada viagem com o planejado.</p>';
+      return;
+    }
+    const r = budgetReport(all, selectedYear, weekly, today);
+    if (!r.trips) {
+      el.innerHTML = '<p class="muted">Nenhuma viagem encerrada no período.</p>';
+      return;
+    }
+    // Status sempre com ícone + texto, nunca só pela cor.
+    const delta = (diff) => (diff > 0
+      ? `<span class="delta-bad">▲ ${fm(diff)} acima</span>`
+      : diff < 0 ? `<span class="delta-good">▼ ${fm(-diff)} abaixo</span>` : '<span class="muted">no orçado</span>');
+    const max = Math.max(...r.months.map((m) => Math.max(m.spent, m.budget)));
+    const rows = r.months.map((m) => {
+      const fill = (m.spent / max) * 100, mark = (m.budget / max) * 100;
+      const short = m.diff > 0 ? `<span class="delta-bad">▲ ${fm(m.diff)}</span>` : m.diff < 0 ? `<span class="delta-good">▼ ${fm(-m.diff)}</span>` : '—';
+      return `<li title="${monthName(m.key, 'long')}: gasto ${fm(m.spent)} · orçado ${fm(m.budget)} (${m.trips} ${m.trips === 1 ? 'viagem' : 'viagens'})">
+        <span>${monthName(m.key)}/${m.key.slice(2, 4)}</span>
+        <span class="track"><span class="fill${m.diff > 0 ? ' over' : ''}" style="width:${fill}%"></span><span class="mark" style="left:calc(${mark}% - 1px)"></span></span>
+        <span class="val">${short}</span></li>`;
+    }).join('');
+    const tableRows = r.months.map((m) => `<tr><td>${monthName(m.key)}/${m.key.slice(2, 4)}</td><td>${m.trips}</td>
+      <td>${fm(m.spent)}</td><td>${fm(m.budget)}</td><td>${m.diff > 0 ? '▲ ' : m.diff < 0 ? '▼ ' : ''}${fm(Math.abs(m.diff))}</td></tr>`).join('');
+    el.innerHTML = `
+      <div class="budget-head"><b>${delta(r.diff)}</b><span class="muted small">do orçado no período</span></div>
+      <p class="muted small">Gasto ${fm(r.spent)} em ${r.trips} ${r.trips === 1 ? 'viagem' : 'viagens'} · orçado ${fm(r.budget)}
+        (${r.trips} × ${fm(weekly)}) · ${r.overCount} de ${r.trips} acima do orçamento</p>
+      <ul class="budget-bars">${rows}</ul>
+      <p class="muted small">Barra = gasto do mês · traço = orçado (viagens × orçamento semanal). Só entram semanas encerradas.</p>
+      <details class="table-view"><summary>Ver tabela</summary>
+        <table class="data"><thead><tr><th>Mês</th><th>Viagens</th><th>Gasto</th><th>Orçado</th><th>Diferença</th></tr></thead>
+        <tbody>${tableRows}</tbody></table></details>`;
   }
 
   function usedCategories(r) {

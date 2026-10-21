@@ -25,6 +25,9 @@ celular e no computador, pode ser instalado na tela inicial (PWA) e funciona off
 - **Gráficos** por categoria e por dia da semana
 - **Análises**: gasto realizado e agendado, média por mês e por viagem, gasto mês a
   mês por categoria, médias por categoria (inclusive hospedagem por noite) e resumo por ano
+- **Orçado x realizado**: cada semana de viagem encerrada comparada ao orçamento semanal,
+  com saldo do período e por mês
+- **Quadros recolhíveis**: toque no título de um quadro para recolher/expandir
 - **Exportar CSV** da semana (abre direto no Excel) para a prestação de contas
 - **Backup na nuvem** (Firebase): com login Google, cada mudança vai para o Firestore
   e os aparelhos ficam sincronizados; funciona offline e envia quando a conexão volta

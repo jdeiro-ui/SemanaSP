@@ -3,7 +3,7 @@
     hasReturnLeg, paymentLabel, nights, weekShare, toISODate, addDays, weekStart, weekDays, parseDate,
     expensesInWeek, parseAmount, formatMoney, summarize, toCSV } = Calc;
 
-  const APP_VERSION = '2026.10.20-1';
+  const APP_VERSION = '2026.10.21-1';
   const STORAGE_KEY = 'semanasp:v1';
   const $ = (sel) => document.querySelector(sel);
 
@@ -607,6 +607,33 @@
       return true;
     },
   };
+
+  // ---------- Quadros recolhíveis ----------
+  // Tocar no título recolhe/expande o quadro; a escolha fica salva neste aparelho.
+  const COLLAPSE_KEY = 'semanasp:collapsed';
+  let collapsed = [];
+  try { collapsed = JSON.parse(localStorage.getItem(COLLAPSE_KEY)) || []; } catch (_) { /* sem armazenamento */ }
+  document.querySelectorAll('.card[data-collapse]').forEach((card) => {
+    const head = card.firstElementChild;
+    head.classList.add('card-head');
+    head.setAttribute('role', 'button');
+    head.tabIndex = 0;
+    const set = (isCollapsed) => {
+      card.classList.toggle('collapsed', isCollapsed);
+      head.setAttribute('aria-expanded', String(!isCollapsed));
+    };
+    set(collapsed.includes(card.dataset.collapse));
+    const toggle = (ev) => {
+      if (ev.target.closest('button:not(.card-head), a, input')) return; // ex.: "Exportar CSV"
+      const isCollapsed = !card.classList.contains('collapsed');
+      set(isCollapsed);
+      collapsed = collapsed.filter((k) => k !== card.dataset.collapse).concat(isCollapsed ? [card.dataset.collapse] : []);
+      try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify(collapsed)); } catch (_) { /* sem armazenamento */ }
+      if (!isCollapsed) window.dispatchEvent(new Event('semanasp:remote')); // redesenha gráficos que estavam ocultos
+    };
+    head.addEventListener('click', toggle);
+    head.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggle(ev); } });
+  });
 
   // ---------- Modo privado ----------
   function applyPrivacy() {
