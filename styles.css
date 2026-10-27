@@ -254,3 +254,6 @@ h2.card-head, .card-head > h2 { margin-bottom: 12px; }
 .budget-bars .fill.over { background: #d03b3b; }
 .budget-bars .mark { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--text); }
 .budget-bars .val { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 84px; }
+
+.topbar { gap: 8px; }
+.topbar h1 { white-space: nowrap; }

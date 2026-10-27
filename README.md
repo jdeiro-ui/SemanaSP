@@ -1,6 +1,6 @@
-# SemanaSP — Despesas de Viagem
+# QuantoGastei? — Despesas de Viagem
 
-App simples para controlar as despesas semanais de viagens a trabalho. Funciona no
+App simples para controlar as despesas semanais de viagens a trabalho (antes chamado SemanaSP). Funciona no
 celular e no computador, pode ser instalado na tela inicial (PWA) e funciona offline.
 
 ## Funcionalidades

@@ -1,5 +1,5 @@
 // Cache simples para o app funcionar offline. Mude a versão ao alterar arquivos.
-const CACHE = 'semanasp-v12';
+const CACHE = 'semanasp-v13';
 const SHARE_CACHE = 'semanasp-share';
 const ASSETS = ['./', 'index.html', 'styles.css', 'calc.js', 'receipt.js', 'app.js', 'stats.js', 'firebase-config.js', 'sync.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png'];
 
