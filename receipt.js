@@ -37,7 +37,11 @@
   // SMS/notificação de compra no cartão: "compra" + "aprovada"/"cartão"/"final 1234" + valor.
   const isCardSms = (text) => /compra/i.test(text) && /aprovad|cart[aã]o|final\s*\d{4}/i.test(text) && /R\$\s*\d/.test(text);
 
+  // Detalhe de compra da Carteira do Google (Google Wallet).
+  const isWallet = (text) => /nome no extrato|id da transa[cç][aã]o|cart[aã]o virtual|carteira do google|google wallet/i.test(text);
+
   function detectSource(text) {
+    if (isWallet(text)) return 'wallet'; // antes do SMS: o texto da tela também fala em "compra" e "cartão"
     if (isCardSms(text)) return 'sms';
     if (/\buber|solicite uma viagem|informa[çc][õo]es da viag/i.test(text)) return 'uber';
     if (/keeta|entregador|pedir de novo|resumo do pedido|hor[áa]rio garantido/i.test(text)) return 'keeta';
@@ -167,7 +171,7 @@
     const inst = seg.match(/(?:em|parcelad[ao] em)\s+(\d{1,2})\s*x\b|\b(\d{1,2})\s*x\s+de\s+R\$/i);
     return {
       source: 'sms',
-      category: guessCategory(merchant),
+      category: guessCategory(merchant) || 'outros',
       amount: values.length ? values[0] : null,
       date: findDate(seg, todayIso),
       description: merchant,
@@ -178,8 +182,44 @@
     };
   }
 
+  // Carteira do Google: nome do estabelecimento no topo (ou em "Nome no extrato"),
+  // valor grande, "quarta-feira, 28 de out., às 15:50" e o cartão usado.
+  function parseWallet(text, todayIso) {
+    const all = lines(text);
+    const amountIdx = all.findIndex((l) => MONEY.test(l));
+    MONEY.lastIndex = 0;
+    const values = amounts(text);
+    const clean = (l) => stripBullet(l || '').replace(/[|<>«»]/g, '').trim();
+    const looksLikeName = (l) => l.length >= 2 && /\p{L}{2}/u.test(l) && !TIME.test(l) && !/^(?:ativ|receba|para)/i.test(l);
+    // Topo da tela: a última linha "de verdade" antes do valor (pula hora/ícones da barra de status).
+    let merchant = '';
+    for (let i = amountIdx - 1; i >= 0 && !merchant; i--) {
+      TIME.lastIndex = 0;
+      const l = clean(all[i]);
+      if (looksLikeName(l)) merchant = l;
+    }
+    TIME.lastIndex = 0;
+    const stmtIdx = all.findIndex((l) => /nome no extrato/i.test(l));
+    const statement = stmtIdx >= 0 ? clean(all[stmtIdx + 1]) : '';
+    if (!merchant || (statement && merchant.length < 2)) merchant = statement;
+    if (amountIdx < 0 && statement) merchant = statement; // valor não lido: o topo não é confiável
+    merchant = titleCase(merchant).slice(0, 50);
+    const card = (all.find((l) => /[•·\-–«]{2}\s*\d{4}\b|final\s*\d{4}/i.test(l) && !/virtual/i.test(l)) || '');
+    return {
+      source: 'wallet',
+      category: guessCategory(merchant) || 'outros', // nome sem pista: Outros (não a 1ª categoria)
+      amount: values.length ? values[0] : null,
+      date: findDate(text, todayIso),
+      description: merchant,
+      city: '',
+      payment: /d[eé]bito/i.test(card) ? null : 'credito',
+      installments: null,
+    };
+  }
+
   function parseReceipt(text, todayIso) {
     const source = detectSource(text);
+    if (source === 'wallet') return parseWallet(text, todayIso);
     if (source === 'sms') return parseCardSms(text, todayIso);
     if (source === 'uber') return parseUber(text, todayIso);
     if (source === 'keeta') return parseKeeta(text, todayIso);

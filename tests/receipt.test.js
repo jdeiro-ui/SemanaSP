@@ -87,3 +87,19 @@ test('SMS com parcelas logo após o estabelecimento', () => {
   const r = sms('Nubank: Compra de R$ 152,40 APROVADA em CHURRASCARIA FOGO DE CHAO em 3x para o cartão com final 1234.');
   assert.deepEqual([r.description, r.installments, r.category], ['Churrascaria Fogo De Chao', 3, 'alimentacao']);
 });
+
+test('print da Carteira do Google: estabelecimento, valor, data e cartão de crédito', () => {
+  const r = parseReceipt(fixture('wallet.txt'), '2026-10-28');
+  assert.equal(r.source, 'wallet');
+  assert.deepEqual([r.amount, r.description, r.date, r.payment, r.category], [1780, 'Dka', '2026-10-28', 'credito', 'outros']);
+});
+
+test('Carteira do Google: 1ª leitura sem o valor ainda é reconhecida (o app tenta de novo)', () => {
+  const r = parseReceipt(fixture('wallet-1a-leitura.txt'), '2026-10-28');
+  assert.deepEqual([r.source, r.amount, r.description, r.date], ['wallet', null, 'Dka', '2026-10-28']);
+});
+
+test('Carteira do Google com nome detalhado do comerciante', () => {
+  const r = parseReceipt('15:50\n<\nPadaria Bella Paulista\nR$ 42,30\nterça-feira, 27 de out., às 08:12\nSantander Unlimited Black ••4241\nNome no extrato\nPADARIA BELLA\nID da transação', '2026-10-28');
+  assert.deepEqual([r.amount, r.description, r.category, r.date], [4230, 'Padaria Bella Paulista', 'alimentacao', '2026-10-27']);
+});

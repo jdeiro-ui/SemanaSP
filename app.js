@@ -3,7 +3,7 @@
     hasReturnLeg, paymentLabel, nights, weekShare, toISODate, addDays, weekStart, weekDays, parseDate,
     expensesInWeek, parseAmount, formatMoney, summarize, toCSV } = Calc;
 
-  const APP_VERSION = '2026.10.28-2';
+  const APP_VERSION = '2026.10.28-3';
   const STORAGE_KEY = 'semanasp:v1';
   const $ = (sel) => document.querySelector(sel);
 
@@ -615,6 +615,18 @@
       const worker = await getOcrWorker();
       const { data } = await worker.recognize(blob);
       result = Receipt.parseReceipt(data.text, today());
+      // Sem valor (ex.: número gigante da Carteira do Google): lê de novo com análise
+      // automática de layout (modo 3) e volta ao modo padrão (6) para os próximos prints.
+      if (!result.amount) {
+        $('#scan-status').textContent = 'Lendo de novo com mais atenção…';
+        await worker.setParameters({ tessedit_pageseg_mode: '3' });
+        try {
+          const second = Receipt.parseReceipt((await worker.recognize(blob)).data.text, today());
+          if (second.amount) result = second;
+        } finally {
+          await worker.setParameters({ tessedit_pageseg_mode: '6' });
+        }
+      }
     } catch (err) {
       scanDialog.close();
       alert('Não foi possível ler o print. Verifique a conexão na primeira vez que usar.\n\n' + (err.message || err));
@@ -622,7 +634,7 @@
     }
     scanDialog.close();
 
-    const origin = { uber: 'da corrida da Uber', keeta: 'do pedido do Keeta', sms: 'do SMS do cartão' }[result.source] || 'do print';
+    const origin = { uber: 'da corrida da Uber', keeta: 'do pedido do Keeta', sms: 'do SMS do cartão', wallet: 'da Carteira do Google' }[result.source] || 'do print';
     const problems = [];
     if (!result.amount) problems.push('Não encontrei o valor.');
     if (result.purchases > 1) problems.push(`Achei ${result.purchases} compras no print; usei a última (mais recente).`);

@@ -8,7 +8,7 @@ celular e no computador, pode ser instalado na tela inicial (PWA) e funciona off
 - **Visão por semana** (segunda a domingo), com navegação entre semanas
 - **Lançamento rápido**: valor, data, categoria, descrição, cidade e forma de pagamento
 - **Leitura de prints**: compartilhe o print de uma corrida da Uber, de um pedido do
-  Keeta ou de um SMS de compra no cartão (ou use o botão 📷) e a despesa é preenchida
+  Keeta, de um SMS de compra no cartão ou da Carteira do Google (ou use o botão 📷) e a despesa é preenchida
   sozinha — trajeto, restaurante/estabelecimento, valor, data, parcelas e um palpite de
   categoria. A leitura (OCR) roda no próprio aparelho
 - **Categorias personalizáveis**: hospedagem, alimentação, transporte, passagem e outros
@@ -66,7 +66,7 @@ npm test
 | `index.html` | Interface |
 | `styles.css` | Estilos (tema claro/escuro automático) |
 | `calc.js` | Regras: semanas, valores, totais, CSV |
-| `receipt.js` | Interpretação do texto lido dos prints (Uber, Keeta, SMS de cartão) |
+| `receipt.js` | Interpretação do texto lido dos prints (Uber, Keeta, SMS de cartão, Carteira do Google) |
 | `importer.js`, `import-ui.js` | Importação de planilhas (regras e tela) |
 | `app.js` | Interação, armazenamento, exportação |
 | `stats.js` | Aba Análises (indicadores, gráfico mensal, tabelas) |
