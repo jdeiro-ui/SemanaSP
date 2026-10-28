@@ -3,7 +3,7 @@
     hasReturnLeg, paymentLabel, nights, weekShare, toISODate, addDays, weekStart, weekDays, parseDate,
     expensesInWeek, parseAmount, formatMoney, summarize, toCSV } = Calc;
 
-  const APP_VERSION = '2026.10.28-1';
+  const APP_VERSION = '2026.10.28-2';
   const STORAGE_KEY = 'semanasp:v1';
   const $ = (sel) => document.querySelector(sel);
 
@@ -668,6 +668,17 @@
   // Ponte para o sync.js: lê o estado e aplica mudanças vindas da nuvem.
   window.SemanaSP = {
     getState: () => state,
+    // Acrescenta despesas (ex.: da importação de planilha) sem duplicar ids já existentes.
+    importExpenses(list) {
+      const r = Calc.mergeExpenses(state.expenses, list);
+      if (r.added) {
+        state.expenses = r.expenses;
+        save();
+        render();
+        window.dispatchEvent(new Event('semanasp:remote')); // redesenha as Análises
+      }
+      return { added: r.added, skipped: r.skipped };
+    },
     applyRemote(docs, settings) {
       const r = Calc.syncMerge(state.expenses, state.deleted, docs);
       let changed = r.changed;

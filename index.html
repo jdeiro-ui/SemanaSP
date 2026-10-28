@@ -193,6 +193,46 @@
     <p id="scan-status">Lendo o print…</p>
   </dialog>
 
+  <dialog id="import-dialog" class="import-dialog">
+    <form id="import-form" method="dialog">
+      <h2>Importar planilha</h2>
+      <label>Arquivo (.xlsx, .xls ou .csv)
+        <input id="imp-file" type="file" accept=".xlsx,.xls,.csv,.txt,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+      </label>
+      <p id="imp-status" class="muted small"></p>
+      <label id="imp-sheet-field" hidden>Aba
+        <select id="imp-sheet"></select>
+      </label>
+      <label id="imp-header-field" hidden>Linha do cabeçalho (nomes das colunas)
+        <select id="imp-header"></select>
+      </label>
+      <div id="imp-map" hidden>
+        <h3>Qual coluna é cada informação?</h3>
+        <div id="imp-cols" class="imp-cols"></div>
+      </div>
+      <div id="imp-values" hidden>
+        <h3>Categorias da planilha → do app</h3>
+        <div id="imp-cats"></div>
+        <h3>Formas de pagamento da planilha → do app</h3>
+        <div id="imp-pays"></div>
+        <h3>Período (opcional)</h3>
+        <div class="dates">
+          <label>De <input name="from" type="date"></label>
+          <label>Até <input name="to" type="date"></label>
+        </div>
+      </div>
+      <div id="imp-preview-box" hidden>
+        <h3>Prévia</h3>
+        <div id="imp-preview"></div>
+      </div>
+      <div class="actions">
+        <button type="button" id="imp-cancel">Cancelar</button>
+        <span class="spacer"></span>
+        <button type="button" id="imp-go" class="primary" disabled>Importar</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="settings-dialog">
     <form id="settings-form" method="dialog">
       <h2>Configurações</h2>
@@ -218,6 +258,7 @@
       <p class="muted">Cópia manual dos dados deste aparelho.</p>
       <div class="actions">
         <button type="button" id="backup-export">Baixar backup</button>
+        <button type="button" id="import-open">Importar planilha</button>
         <label class="button">Importar despesas
           <input id="merge-import" type="file" accept="application/json,.json" hidden>
         </label>
@@ -236,8 +277,10 @@
 
   <script src="calc.js"></script>
   <script src="receipt.js"></script>
+  <script src="importer.js"></script>
   <script src="app.js"></script>
   <script src="stats.js"></script>
+  <script src="import-ui.js"></script>
   <script src="firebase-config.js"></script>
   <script type="module" src="sync.js"></script>
 </body>

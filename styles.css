@@ -274,3 +274,12 @@ dialog label.cat-show { flex-direction: row; align-items: center; gap: 4px; marg
 .cat-del { padding: 6px 8px; }
 .pay-row label:first-child { flex: 1.25; }
 dialog .pay-row select { padding: 10px 4px 10px 8px; font-size: .95rem; }
+
+/* ---------- Importar planilha ---------- */
+.import-dialog { max-height: 92vh; }
+.imp-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; }
+.imp-cols label { margin-bottom: 8px; }
+dialog .imp-cols select, dialog .vmap select { width: 100%; font-size: .85rem; padding: 8px; }
+dialog label.vmap { display: grid; grid-template-columns: 1fr 1.2fr; align-items: center; gap: 8px; color: var(--text); margin-bottom: 6px; }
+.vmap span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .85rem; }
+#imp-preview table.data td:nth-child(3) { text-align: left; }

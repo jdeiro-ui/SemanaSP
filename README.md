@@ -33,7 +33,10 @@ celular e no computador, pode ser instalado na tela inicial (PWA) e funciona off
 - **Exportar CSV** da semana (abre direto no Excel) para a prestação de contas
 - **Backup na nuvem** (Firebase): com login Google, cada mudança vai para o Firestore
   e os aparelhos ficam sincronizados; funciona offline e envia quando a conexão volta
-- **Backup/restauração** em JSON e **importação** que acrescenta despesas sem apagar
+- **Importar planilha** (.xlsx, .xls ou .csv): o app sugere as colunas e a tradução de
+  categorias e formas de pagamento, mostra uma prévia e acrescenta as despesas sem apagar
+  nada; reimportar o mesmo arquivo não duplica. A leitura roda no aparelho
+- **Backup/restauração** em JSON e **importação** de arquivo JSON que acrescenta despesas
 
 Os dados ficam salvos no navegador do aparelho (`localStorage`) e, com o backup na
 nuvem ativo, também em `users/{uid}/expenses` no Firestore do projeto configurado em
@@ -63,7 +66,8 @@ npm test
 | `index.html` | Interface |
 | `styles.css` | Estilos (tema claro/escuro automático) |
 | `calc.js` | Regras: semanas, valores, totais, CSV |
-| `receipt.js` | Interpretação do texto lido dos prints (Uber, Keeta) |
+| `receipt.js` | Interpretação do texto lido dos prints (Uber, Keeta, SMS de cartão) |
+| `importer.js`, `import-ui.js` | Importação de planilhas (regras e tela) |
 | `app.js` | Interação, armazenamento, exportação |
 | `stats.js` | Aba Análises (indicadores, gráfico mensal, tabelas) |
 | `sync.js`, `firebase-config.js` | Backup e sincronização na nuvem (Firebase) |
