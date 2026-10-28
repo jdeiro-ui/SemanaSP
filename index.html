@@ -168,7 +168,7 @@
         <input name="city" list="cities" placeholder="Digite o local" maxlength="60" class="city-other" hidden>
         <datalist id="cities"></datalist>
       </fieldset>
-      <div class="dates">
+      <div class="dates pay-row">
         <label>Pagamento
           <select name="payment"></select>
         </label>
@@ -199,6 +199,11 @@
       <label>Orçamento semanal (R$)
         <input name="budget" inputmode="decimal" placeholder="Sem limite" autocomplete="off">
       </label>
+      <h3>Categorias</h3>
+      <p class="muted small">Renomeie, troque o ícone (emoji), oculte do formulário ou crie categorias.</p>
+      <ul id="cat-editor" class="cat-editor"></ul>
+      <button type="button" id="cat-add">+ Nova categoria</button>
+      <h3>Localização</h3>
       <label class="check">
         <input name="geo" type="checkbox"> Marcar a cidade pela localização do celular
       </label>

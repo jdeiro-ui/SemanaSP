@@ -8,12 +8,16 @@
   --danger: #dc2626;
   --ok: #059669;
   --radius: 14px;
-  /* Categorias: paleta validada para daltonismo, na ordem de CHART_ORDER (calc.js). */
-  --cat-hospedagem: #2a78d6;
-  --cat-passagem: #eb6834;
-  --cat-alimentacao: #1baf7a;
-  --cat-transporte: #eda100;
-  --cat-outros: #e87ba4;
+  /* Cores das categorias (slot em calc.js): paleta de 8 validada para daltonismo.
+     1 Hospedagem · 2 Passagem · 3 Alimentação · 4 Transporte · 5 Outros · 6-8 criadas */
+  --slot-1: #2a78d6;
+  --slot-2: #eb6834;
+  --slot-3: #1baf7a;
+  --slot-4: #eda100;
+  --slot-5: #e87ba4;
+  --slot-6: #008300;
+  --slot-7: #6250d6;
+  --slot-8: #e34948;
   --grid: #e8e8ef;
   --axis: #c3c2cc;
   color-scheme: light dark;
@@ -27,11 +31,14 @@
     --muted: #9a9fb2;
     --line: #2c2e3b;
     --primary: #818cf8;
-    --cat-hospedagem: #3987e5;
-    --cat-passagem: #d95926;
-    --cat-alimentacao: #199e70;
-    --cat-transporte: #c98500;
-    --cat-outros: #d55181;
+    --slot-1: #3987e5;
+    --slot-2: #d95926;
+    --slot-3: #199e70;
+    --slot-4: #c98500;
+    --slot-5: #d55181;
+    --slot-6: #008300;
+    --slot-7: #9085e9;
+    --slot-8: #e66767;
     --grid: #2a2b36;
     --axis: #3a3c4a;
   }
@@ -250,10 +257,20 @@ h2.card-head, .card-head > h2 { margin-bottom: 12px; }
 .budget-bars { list-style: none; padding: 0; margin: 10px 0 0; }
 .budget-bars li { display: grid; grid-template-columns: 48px 1fr auto; align-items: center; gap: 8px; font-size: .8rem; margin-bottom: 6px; }
 .budget-bars .track { position: relative; height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; }
-.budget-bars .fill { position: absolute; top: 0; bottom: 0; left: 0; background: var(--cat-hospedagem); border-radius: 0 5px 5px 0; }
+.budget-bars .fill { position: absolute; top: 0; bottom: 0; left: 0; background: var(--slot-1); border-radius: 0 5px 5px 0; }
 .budget-bars .fill.over { background: #d03b3b; }
 .budget-bars .mark { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--text); }
 .budget-bars .val { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 84px; }
 
 .topbar { gap: 8px; }
 .topbar h1 { white-space: nowrap; }
+
+/* ---------- Editor de categorias ---------- */
+.cat-editor { list-style: none; padding: 0; margin: 0 0 8px; }
+.cat-editor li { display: grid; grid-template-columns: 48px 1fr auto; gap: 6px; align-items: center; margin-bottom: 6px; }
+dialog .cat-editor input.cat-icon { text-align: center; padding: 8px 4px; font-size: 1.1rem; }
+dialog .cat-editor input.cat-label { padding: 8px; font-size: .95rem; }
+dialog label.cat-show { flex-direction: row; align-items: center; gap: 4px; margin: 0; font-size: .75rem; }
+.cat-del { padding: 6px 8px; }
+.pay-row label:first-child { flex: 1.25; }
+dialog .pay-row select { padding: 10px 4px 10px 8px; font-size: .95rem; }

@@ -70,9 +70,11 @@ async function main() {
     const docs = Calc.pendingUploads(state.expenses, state.deleted, remote);
     const col = F.collection(db, 'users', user.uid, 'expenses');
     const writes = docs.map((d) => [F.doc(col, d.id), JSON.parse(JSON.stringify(d))]);
-    if ((state.budgetUpdatedAt || 0) > ((remoteSettings && remoteSettings.budgetUpdatedAt) || 0)) {
-      remoteSettings = { budget: state.budget || 0, budgetUpdatedAt: state.budgetUpdatedAt };
-      writes.push([F.doc(db, 'users', user.uid), remoteSettings]);
+    // Preferências (orçamento, categorias): só os campos mais novos, mesclados no documento.
+    const patch = Calc.settingsToUpload(state, remoteSettings);
+    if (patch) {
+      remoteSettings = { ...(remoteSettings || {}), ...patch };
+      writes.push([F.doc(db, 'users', user.uid), JSON.parse(JSON.stringify(patch)), { merge: true }]);
     }
     if (!writes.length) return;
     for (const d of docs) remote.set(d.id, d); // evita reenviar antes do retorno do servidor
@@ -81,7 +83,7 @@ async function main() {
     // Lotes de até 450 gravações (limite do Firestore é 500).
     for (let i = 0; i < writes.length; i += 450) {
       const batch = F.writeBatch(db);
-      for (const [ref, data] of writes.slice(i, i + 450)) batch.set(ref, data);
+      for (const [ref, data, opts] of writes.slice(i, i + 450)) batch.set(ref, data, opts || {});
       batch.commit().catch((err) => setStatus(`Erro ao enviar para a nuvem: ${err.code || err.message}`));
     }
   }

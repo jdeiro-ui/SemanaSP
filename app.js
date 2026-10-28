@@ -1,9 +1,9 @@
 (function () {
-  const { CATEGORIES, PAYMENTS, CITIES, AIRLINES, INSTALLMENT_PAYMENTS, MAX_INSTALLMENTS, installmentsOf,
+  const { PAYMENTS, CITIES, AIRLINES, INSTALLMENT_PAYMENTS, MAX_INSTALLMENTS, installmentsOf,
     hasReturnLeg, paymentLabel, nights, weekShare, toISODate, addDays, weekStart, weekDays, parseDate,
     expensesInWeek, parseAmount, formatMoney, summarize, toCSV } = Calc;
 
-  const APP_VERSION = '2026.10.27-1';
+  const APP_VERSION = '2026.10.28-1';
   const STORAGE_KEY = 'semanasp:v1';
   const $ = (sel) => document.querySelector(sel);
 
@@ -25,12 +25,21 @@
   const state = load();
   const today = () => toISODate(new Date());
 
-  // Despesas em categorias que saíram do app (ex.: Combustível) passam para a substituta.
-  let migrated = false;
-  for (const e of state.expenses) {
-    const to = Calc.RETIRED_CATEGORIES[e.category];
-    if (to) { e.category = to; e.updatedAt = Date.now(); migrated = true; }
+  // Despesas com categoria/forma de pagamento que saiu do app (Combustível, Nubank,
+  // Unlimited) passam para a substituta. Também roda sobre o que chega da nuvem.
+  function migrateAll() {
+    let changed = false;
+    for (const e of state.expenses) if (Calc.migrateExpense(e)) { e.updatedAt = Date.now(); changed = true; }
+    return changed;
   }
+  const migrated = migrateAll();
+
+  // Categorias (de fábrica + personalizadas). Cores pelo `slot` (--slot-N); sem slot
+  // (da 9ª em diante) usam a cor de Outros.
+  const cats = () => Calc.resolveCategories(state.categories);
+  const catById = (id) => cats().find((c) => c.id === id) || { id, label: id, icon: '📎', slot: 0 };
+  const catColor = (id) => `var(--slot-${catById(id).slot || 5})`;
+  window.Categories = { list: cats, get: catById, color: catColor };
 
   // Preferências deste aparelho (não vão para a nuvem).
   const pref = (key, fallback) => {
@@ -46,7 +55,7 @@
   const money = (cents) => window.Privacy.money(cents);
   let currentWeek = weekStart(today());
   let editingId = null;
-  let selectedCategory = CATEGORIES[0].id;
+  let selectedCategory = 'hospedagem';
 
   // ---------- Renderização ----------
   const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
@@ -82,13 +91,13 @@
     }
 
     const maxCat = Math.max(1, ...Object.values(s.byCategory));
-    $('#by-category').innerHTML = CATEGORIES
+    $('#by-category').innerHTML = Object.keys(s.byCategory).map(catById)
       .filter((c) => s.byCategory[c.id] > 0)
       .sort((a, b) => s.byCategory[b.id] - s.byCategory[a.id])
       .map((c) => `
         <li>
-          <div class="label"><span>${c.icon} ${c.label}</span><b>${money(s.byCategory[c.id])}</b></div>
-          <div class="track"><div class="fill" style="width:${(s.byCategory[c.id] / maxCat) * 100}%;background:var(--cat-${c.id})"></div></div>
+          <div class="label"><span>${escapeHtml(c.icon)} ${escapeHtml(c.label)}</span><b>${money(s.byCategory[c.id])}</b></div>
+          <div class="track"><div class="fill" style="width:${(s.byCategory[c.id] / maxCat) * 100}%;background:${catColor(c.id)}"></div></div>
         </li>`).join('') || '<li class="muted">Sem gastos.</li>';
 
     const maxPay = Math.max(1, ...Object.values(s.byPayment));
@@ -121,7 +130,7 @@
     $('#empty').hidden = items.length > 0;
     $('#export-csv').hidden = items.length === 0;
     $('#expense-list').innerHTML = items.slice().reverse().map((e) => {
-      const c = CATEGORIES.find((x) => x.id === e.category) || CATEGORIES[CATEGORIES.length - 1];
+      const c = catById(e.category);
       const n = nights(e);
       const share = weekShare(e, currentWeek);
       const isFlight = e.category === 'passagem';
@@ -140,10 +149,10 @@
       const tags = `<span class="tags"><span class="tag">${escapeHtml(paymentLabel(e.payment))}${inst > 1 ? ` ${inst}x` : ''}</span>`
         + (e.reimbursable ? '<span class="tag refund">reembolsável</span>' : '') + '</span>';
       const title = e.description || (isFlight && (e.airline || e.locator)
-        ? ['Passagem', e.airline, e.locator].filter(Boolean).join(' · ') : c.label);
+        ? [c.label, e.airline, e.locator].filter(Boolean).join(' · ') : c.label);
       return `
         <li data-id="${e.id}">
-          <span class="ico">${c.icon}</span>
+          <span class="ico">${escapeHtml(c.icon)}</span>
           <div class="info">
             <div class="desc">${escapeHtml(title)}</div>
             <div class="muted">${when}${e.city ? ' · ' + escapeHtml(e.city) : ''}</div>${partial}
@@ -158,8 +167,9 @@
   const form = $('#expense-form');
 
   function renderCategoryPicker() {
-    $('#category-picker').innerHTML = CATEGORIES.map((c) =>
-      `<button type="button" data-cat="${c.id}" aria-pressed="${c.id === selectedCategory}">${c.icon} ${c.label}</button>`
+    // Ocultas não aparecem, a não ser que seja a da despesa sendo editada.
+    $('#category-picker').innerHTML = cats().filter((c) => !c.hidden || c.id === selectedCategory).map((c) =>
+      `<button type="button" data-cat="${c.id}" aria-pressed="${c.id === selectedCategory}">${escapeHtml(c.icon)} ${escapeHtml(c.label)}</button>`
     ).join('');
   }
 
@@ -186,12 +196,14 @@
     form.locator.value = src.locator || '';
     setAirline(src.airline || '');
     const lastPayment = last && PAYMENTS.some((p) => p.id === last.payment) ? last.payment : PAYMENTS[0].id;
-    form.payment.value = expense && PAYMENTS.some((p) => p.id === expense.payment) ? expense.payment : lastPayment;
+    const knownPayment = (id) => PAYMENTS.some((p) => p.id === id);
+    form.payment.value = knownPayment(src.payment) ? src.payment : lastPayment;
     form.reimbursable.checked = expense ? expense.reimbursable : false;
-    // Parcelas valem só para esta despesa: uma nova sempre começa à vista.
-    form.installments.value = String(expense ? installmentsOf(expense) : 1);
+    // Parcelas valem só para esta despesa: uma nova começa à vista (salvo se o SMS informar).
+    form.installments.value = String(expense ? installmentsOf(expense) : (draft && draft.installments) || 1);
     syncInstallments();
-    selectedCategory = src.category || CATEGORIES[0].id;
+    const firstVisible = (cats().find((c) => !c.hidden) || { id: 'outros' }).id;
+    selectedCategory = src.category || firstVisible;
     renderCategoryPicker();
     syncDates();
 
@@ -339,7 +351,7 @@
     const current = form.installments.value || '1';
     form.installments.innerHTML = Array.from({ length: MAX_INSTALLMENTS }, (_, i) => {
       const k = i + 1;
-      const label = k === 1 ? 'À vista' : amount > 0 ? `${k}x de ${formatMoney(Math.round(amount / k))}` : `${k}x`;
+      const label = k === 1 ? 'À vista' : amount > 0 ? `${k}x ${formatMoney(Math.round(amount / k))}` : `${k}x`;
       return `<option value="${k}">${label}</option>`;
     }).join('');
     form.installments.value = current;
@@ -431,7 +443,7 @@
 
   $('#export-csv').addEventListener('click', () => {
     const items = expensesInWeek(state.expenses, currentWeek);
-    download(`despesas_${currentWeek}.csv`, toCSV(items, currentWeek), 'text/csv;charset=utf-8');
+    download(`despesas_${currentWeek}.csv`, toCSV(items, currentWeek, cats()), 'text/csv;charset=utf-8');
   });
 
   // ---------- Configurações ----------
@@ -441,18 +453,85 @@
   $('#btn-settings').addEventListener('click', () => {
     settingsForm.budget.value = state.budget ? (state.budget / 100).toFixed(2).replace('.', ',') : '';
     settingsForm.geo.checked = pref('semanasp:geo', true);
+    catDraft = cats().map((c) => ({ ...c }));
+    catRemoved = [];
+    renderCatEditor();
     settingsDialog.showModal();
   });
+
+  // ---------- Editor de categorias (aplicado só ao salvar as configurações) ----------
+  let catDraft = [];
+  let catRemoved = [];
+
+  function readCatEditor() {
+    document.querySelectorAll('#cat-editor li').forEach((li) => {
+      const c = catDraft.find((x) => x.id === li.dataset.id);
+      c.icon = li.querySelector('.cat-icon').value.trim();
+      c.label = li.querySelector('.cat-label').value.trim();
+      const show = li.querySelector('.cat-show input');
+      if (show) c.hidden = !show.checked;
+    });
+  }
+
+  function renderCatEditor() {
+    $('#cat-editor').innerHTML = catDraft.map((c) => `
+      <li data-id="${c.id}">
+        <input class="cat-icon" value="${escapeHtml(c.icon)}" maxlength="4" aria-label="Ícone">
+        <input class="cat-label" value="${escapeHtml(c.label)}" maxlength="30" placeholder="Nome da categoria" aria-label="Nome">
+        ${c.custom ? '<button type="button" class="cat-del" aria-label="Excluir categoria">🗑️</button>'
+          : c.id === 'outros' ? '<span class="muted small">fixa</span>'
+          : `<label class="cat-show"><input type="checkbox" ${c.hidden ? '' : 'checked'}> mostrar</label>`}
+      </li>`).join('');
+  }
+
+  $('#cat-add').addEventListener('click', () => {
+    readCatEditor();
+    const c = { id: 'c-' + Date.now().toString(36), label: '', icon: '🏷️', custom: true, hidden: false, slot: Calc.nextCustomSlot(catDraft) };
+    catDraft.splice(catDraft.length - 1, 0, c); // antes de Outros
+    renderCatEditor();
+    $(`#cat-editor li[data-id="${c.id}"] .cat-label`).focus();
+  });
+
+  $('#cat-editor').addEventListener('click', (ev) => {
+    const del = ev.target.closest('.cat-del');
+    if (!del) return;
+    readCatEditor();
+    const id = del.closest('li').dataset.id;
+    const used = state.expenses.filter((e) => e.category === id).length;
+    if (used && !confirm(`${used} ${used === 1 ? 'despesa usa' : 'despesas usam'} esta categoria e ${used === 1 ? 'irá' : 'irão'} para Outros. Excluir?`)) return;
+    catDraft = catDraft.filter((c) => c.id !== id);
+    catRemoved.push(id);
+    renderCatEditor();
+  });
+
+  // Aplica o editor: salva só o que difere do padrão e move despesas de categorias excluídas.
+  function applyCatEditor() {
+    readCatEditor();
+    for (const c of catDraft) if (c.custom && !c.label) catRemoved.push(c.id); // nova sem nome: descarta
+    const saved = catDraft.filter((c) => !catRemoved.includes(c.id)).map((c) => (c.custom
+      ? { id: c.id, label: c.label, icon: c.icon || '🏷️', custom: true, slot: c.slot }
+      : { id: c.id, label: c.label, icon: c.icon, hidden: !!c.hidden }));
+    if (JSON.stringify(Calc.resolveCategories(saved)) === JSON.stringify(cats()) && !catRemoved.length) return false;
+    state.categories = saved;
+    state.categoriesUpdatedAt = Date.now();
+    for (const e of state.expenses) {
+      if (catRemoved.includes(e.category)) { e.category = 'outros'; e.updatedAt = Date.now(); }
+    }
+    return true;
+  }
   $('#cancel-settings').addEventListener('click', () => settingsDialog.close());
   settingsForm.addEventListener('submit', () => {
     const v = parseAmount(settingsForm.budget.value);
     setPref('semanasp:geo', settingsForm.geo.checked);
+    let changed = applyCatEditor();
     if ((v > 0 ? v : 0) !== state.budget) {
       state.budget = v > 0 ? v : 0;
       state.budgetUpdatedAt = Date.now();
-      save();
+      changed = true;
     }
+    if (changed) save();
     render();
+    window.dispatchEvent(new Event('semanasp:remote')); // redesenha as Análises
   });
 
   $('#backup-export').addEventListener('click', () => {
@@ -543,9 +622,10 @@
     }
     scanDialog.close();
 
-    const origin = result.source === 'uber' ? 'da corrida da Uber' : result.source === 'keeta' ? 'do pedido do Keeta' : 'do print';
+    const origin = { uber: 'da corrida da Uber', keeta: 'do pedido do Keeta', sms: 'do SMS do cartão' }[result.source] || 'do print';
     const problems = [];
     if (!result.amount) problems.push('Não encontrei o valor.');
+    if (result.purchases > 1) problems.push(`Achei ${result.purchases} compras no print; usei a última (mais recente).`);
     if (!result.date) problems.push('A data não aparece no print; usei a de hoje.');
     const note = { warn: problems.length > 0, text: `Lido ${origin}. ${problems.join(' ')} Confira antes de salvar.`.replace(/\s+/g, ' ') };
     if (!result.date) result.date = today();
@@ -595,13 +675,15 @@
         state.expenses = r.expenses;
         state.deleted = r.deleted;
       }
-      if (settings && (settings.budgetUpdatedAt || 0) > (state.budgetUpdatedAt || 0)) {
-        state.budget = settings.budget || 0;
-        state.budgetUpdatedAt = settings.budgetUpdatedAt;
+      const patch = Calc.settingsFromRemote(state, settings);
+      if (patch) {
+        Object.assign(state, patch);
+        state.budget = state.budget || 0;
         changed = true;
       }
       if (!changed) return false;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      if (migrateAll()) save(); // algo antigo veio da nuvem: converte e devolve atualizado
+      else localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       render();
       window.dispatchEvent(new Event('semanasp:remote'));
       return true;

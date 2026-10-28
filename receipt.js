@@ -34,7 +34,11 @@
     return iso(ty) > todayIso ? iso(ty - 1) : iso(ty);
   }
 
+  // SMS/notificação de compra no cartão: "compra" + "aprovada"/"cartão"/"final 1234" + valor.
+  const isCardSms = (text) => /compra/i.test(text) && /aprovad|cart[aã]o|final\s*\d{4}/i.test(text) && /R\$\s*\d/.test(text);
+
   function detectSource(text) {
+    if (isCardSms(text)) return 'sms';
     if (/\buber|solicite uma viagem|informa[çc][õo]es da viag/i.test(text)) return 'uber';
     if (/keeta|entregador|pedir de novo|resumo do pedido|hor[áa]rio garantido/i.test(text)) return 'keeta';
     return null;
@@ -125,14 +129,64 @@
     };
   }
 
+  // Palpite de categoria pelo nome do estabelecimento.
+  const CATEGORY_HINTS = [
+    ['passagem', /latam|\bgol\b|voegol|\bazul\b|decolar|123 ?milhas|maxmilhas|zupper|smiles/i],
+    ['hospedagem', /hotel|pousada|hostel|airbnb|booking|\bibis\b|accor|motel|\bflat\b/i],
+    ['transporte', /\buber|\b99\b|99app|99pop|t[aá]xi|cabify|metr[oô]|\bvlt\b|[oô]nibus|estaciona|estapar|sem ?parar|ped[aá]gio|\bposto\b|shell|ipiranga|petrobras/i],
+    ['alimentacao', /restaurante|padaria|panifica|lanch|\bbar\b|caf[eé]|pizza|burg|mc ?donald|subway|ifood|keeta|rappi|mercado|supermerc|p[aã]o de a[cç][uú]car|oxxo|carrefour|hortifruti|a[cç]ougue|sushi|churrasc|cantina|bistr|food|grill/i],
+  ];
+  const guessCategory = (name) => (CATEGORY_HINTS.find(([, re]) => re.test(name)) || [null])[0];
+
+  // "PADARIA PAO DOURADO" -> "Padaria Pao Dourado" (só quando veio tudo em maiúsculas).
+  const titleCase = (s) => (s === s.toUpperCase()
+    ? s.toLowerCase().replace(/(^|[\s\-/*&])(\p{L})/gu, (m, sep, ch) => sep + ch.toUpperCase())
+    : s);
+
+  const END = String.raw`(?=\s+(?:para|no|com|em)\s+(?:o\s+)?cart|\s+em\s+\d{1,2}\/\d{1,2}|\s+(?:em|parcelad[ao] em)\s+\d{1,2}\s*x\b|\s+(?:às|as)\s+\d|\s+valor|\s+R\$|[.;,]|$)`;
+  const MERCHANT_PATTERNS = [
+    new RegExp(String.raw`aprovad[ao]\s+(?:em|no|na)\s+(?:estabelecimento\s+)?(?!\d|cart|valor|d[eé]bito|cr[eé]dito)(.+?)` + END, 'i'), // Nubank, C6, Inter
+    new RegExp(String.raw`\b(?:local|estabelecimento|loja|lojista)\s*:?\s+(.+?)` + END, 'i'),                 // "Local: X"
+    new RegExp(String.raw`R\$\s*[\d.]+,\d{2}\s+(?:em|no|na)\s+(?!\d|cart|valor)(.+?)` + END, 'i'),           // "R$ 45,90 em X"
+    new RegExp(String.raw`\d{1,2}:\d{2}h?\s*,?\s*(?:em|no|na)?\s*(?!R\$)(\p{Lu}[^.;,]{2,}?)` + END, 'u'),     // Itaú: "às 12:30, X"
+    /R\$\s*[\d.]+,\d{2}\s+(\p{Lu}[\p{Lu}\d *&'\-.]{2,}?)(?=\s*[.;,]|\s+(?:em|no|às|as)\s|$)/u,            // Bradesco: "R$ 45,90 MERCADO X"
+  ];
+
+  function parseCardSms(text, todayIso) {
+    const flat = text.replace(/\s+/g, ' ').trim();
+    // Num print com várias mensagens, cada "compra" começa um trecho; vale a última (a mais recente).
+    const segments = flat.split(/(?=\bcompra\b)/i).filter((seg) => /compra/i.test(seg) && /R\$\s*\d/.test(seg));
+    const seg = segments[segments.length - 1] || flat;
+    const values = amounts(seg);
+    let merchant = '';
+    for (const re of MERCHANT_PATTERNS) {
+      const m = seg.match(re);
+      if (m && m[1].trim().length > 1) { merchant = m[1]; break; }
+    }
+    merchant = titleCase(merchant.replace(/\s+(?:aprovad[ao]|realizad[ao])\b.*$/i, '').trim()).slice(0, 50);
+    const inst = seg.match(/(?:em|parcelad[ao] em)\s+(\d{1,2})\s*x\b|\b(\d{1,2})\s*x\s+de\s+R\$/i);
+    return {
+      source: 'sms',
+      category: guessCategory(merchant),
+      amount: values.length ? values[0] : null,
+      date: findDate(seg, todayIso),
+      description: merchant,
+      city: '',
+      payment: /d[eé]bito/i.test(seg) ? null : 'credito',
+      installments: inst ? Number(inst[1] || inst[2]) : null,
+      purchases: segments.length,
+    };
+  }
+
   function parseReceipt(text, todayIso) {
     const source = detectSource(text);
+    if (source === 'sms') return parseCardSms(text, todayIso);
     if (source === 'uber') return parseUber(text, todayIso);
     if (source === 'keeta') return parseKeeta(text, todayIso);
     return parseGeneric(text, todayIso);
   }
 
-  const api = { parseReceipt, findDate, detectSource, parseStop };
+  const api = { parseReceipt, findDate, detectSource, parseStop, guessCategory };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Receipt = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

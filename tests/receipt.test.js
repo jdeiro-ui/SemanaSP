@@ -48,3 +48,42 @@ test('texto desconhecido pega o maior valor', () => {
   assert.equal(r.source, null);
   assert.equal(r.amount, 1250);
 });
+
+const sms = (text) => parseReceipt(text, TODAY);
+
+test('SMS do Nubank: valor, estabelecimento e categoria', () => {
+  const r = sms('Nubank: Compra de R$ 45,90 APROVADA em PADARIA PAO DOURADO para o cartão com final 1234.');
+  assert.equal(r.source, 'sms');
+  assert.deepEqual([r.amount, r.description, r.category, r.payment, r.date], [4590, 'Padaria Pao Dourado', 'alimentacao', 'credito', null]);
+});
+
+test('SMS do Itaú com data, hora e parcelas', () => {
+  const r = sms('ITAU: Compra aprovada no cartao final 9876 de R$ 1.200,00 em 3x em 16/10 as 14:32, LATAM AIRLINES BRASIL.');
+  assert.deepEqual([r.amount, r.date, r.installments, r.description, r.category], [120000, '2026-10-16', 3, 'Latam Airlines Brasil', 'passagem']);
+});
+
+test('SMS do Bradesco com valor antes do estabelecimento', () => {
+  const r = sms('BRADESCO CARTOES: COMPRA APROVADA NO CARTAO FINAL 4321 EM 15/10/2026 12:01. VALOR DE R$ 87,50 HOTEL IBIS PAULISTA.');
+  assert.deepEqual([r.amount, r.date, r.description, r.category], [8750, '2026-10-15', 'Hotel Ibis Paulista', 'hospedagem']);
+});
+
+test('SMS com "Local:" e transporte por aplicativo', () => {
+  const r = sms('Santander: Compra aprovada no valor de R$ 23,40. Cartao final 5555. Local: UBER *TRIP HELP.UBER.COM');
+  assert.deepEqual([r.amount, r.category], [2340, 'transporte']);
+  assert.match(r.description, /^Uber \*Trip/);
+});
+
+test('print com várias mensagens usa a compra mais recente (a última)', () => {
+  const r = sms(`Ontem\nNubank: Compra de R$ 30,00 APROVADA em OXXO PINHEIROS para o cartão com final 1234.\nHoje\nNubank: Compra de R$ 52,10 APROVADA em SUSHI HOUSE para o cartão com final 1234.`);
+  assert.deepEqual([r.amount, r.description, r.purchases], [5210, 'Sushi House', 2]);
+});
+
+test('compra no débito não marca cartão de crédito; texto sem compra não é SMS', () => {
+  assert.equal(sms('Compra aprovada no débito de R$ 10,00 em FARMACIA X. Cartao final 1111').payment, null);
+  assert.notEqual(sms('Subtotal R$ 10,00 Total R$ 12,50').source, 'sms');
+});
+
+test('SMS com parcelas logo após o estabelecimento', () => {
+  const r = sms('Nubank: Compra de R$ 152,40 APROVADA em CHURRASCARIA FOGO DE CHAO em 3x para o cartão com final 1234.');
+  assert.deepEqual([r.description, r.installments, r.category], ['Churrascaria Fogo De Chao', 3, 'alimentacao']);
+});

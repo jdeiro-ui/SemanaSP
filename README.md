@@ -7,16 +7,18 @@ celular e no computador, pode ser instalado na tela inicial (PWA) e funciona off
 
 - **Visão por semana** (segunda a domingo), com navegação entre semanas
 - **Lançamento rápido**: valor, data, categoria, descrição, cidade e forma de pagamento
-- **Leitura de prints**: compartilhe o print de uma corrida da Uber ou de um pedido do
-  Keeta (ou use o botão 📷) e a despesa é preenchida sozinha — trajeto da corrida,
-  restaurante do pedido, valor e data. A leitura (OCR) roda no próprio aparelho
-- **Categorias**: hospedagem, alimentação, transporte, passagem, outros
+- **Leitura de prints**: compartilhe o print de uma corrida da Uber, de um pedido do
+  Keeta ou de um SMS de compra no cartão (ou use o botão 📷) e a despesa é preenchida
+  sozinha — trajeto, restaurante/estabelecimento, valor, data, parcelas e um palpite de
+  categoria. A leitura (OCR) roda no próprio aparelho
+- **Categorias personalizáveis**: hospedagem, alimentação, transporte, passagem e outros
+  podem ser renomeadas, trocar de ícone ou ser ocultadas; dá para criar novas (⚙️)
 - **Hospedagem com check-in e check-out**: o valor é distribuído por noite, e uma
   estadia que atravessa semanas entra em cada semana só com as suas noites
 - **Passagem com ida, volta, data da compra, companhia aérea e localizador**: conta na
   semana da viagem (metade na ida, metade na volta), não na semana da compra
-- **Formas de pagamento**: Nubank, Unlimited, Ticket e Pix/dinheiro, com total por forma;
-  Nubank e Unlimited permitem informar parcelas (só daquela despesa)
+- **Formas de pagamento**: cartão de crédito (com parcelas, só daquela despesa), Ticket e
+  Pix/dinheiro, com total por forma
 - **Reembolso**: marque o que a empresa deve reembolsar e veja o total a receber
 - **Local**: Rio de Janeiro e São Paulo com um toque, ou digite outro; a cidade pode ser
   marcada automaticamente pela localização do celular (desligável nas configurações)

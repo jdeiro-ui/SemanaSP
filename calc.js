@@ -1,29 +1,71 @@
 // Regras de negócio puras (sem DOM) — usadas pelo app e pelos testes em Node.
 (function (root) {
+  // Categorias de fábrica, na ordem do formulário. `slot` é a cor fixa (--slot-N em
+  // styles.css, paleta de 8 cores validada para daltonismo) e a ordem nos gráficos.
+  // Hospedagem e Passagem têm campos próprios (check-out; volta, companhia etc.).
   const CATEGORIES = [
-    { id: 'hospedagem', label: 'Hospedagem', icon: '🏨' },
-    { id: 'alimentacao', label: 'Alimentação', icon: '🍽️' },
-    { id: 'transporte', label: 'Transporte', icon: '🚕' },
-    { id: 'passagem', label: 'Passagem', icon: '✈️' },
-    { id: 'outros', label: 'Outros', icon: '📎' },
+    { id: 'hospedagem', label: 'Hospedagem', icon: '🏨', slot: 1 },
+    { id: 'alimentacao', label: 'Alimentação', icon: '🍽️', slot: 3 },
+    { id: 'transporte', label: 'Transporte', icon: '🚕', slot: 4 },
+    { id: 'passagem', label: 'Passagem', icon: '✈️', slot: 2 },
+    { id: 'outros', label: 'Outros', icon: '📎', slot: 5 },
   ];
+  // Categorias criadas pelo usuário recebem as cores seguintes; da 9ª em diante
+  // (slot 0) entram como "Outros" nos gráficos, mas mantêm o nome nas listas.
+  const CUSTOM_SLOTS = [6, 7, 8];
 
-  // Ordem fixa das categorias nos gráficos (empilhamento e legenda). As cores
-  // (--cat-<id> em styles.css) seguem esta ordem numa paleta validada para daltonismo.
-  const CHART_ORDER = ['hospedagem', 'passagem', 'alimentacao', 'transporte', 'outros'];
+  // Lista efetiva: categorias de fábrica (com nome/ícone/ocultação do usuário),
+  // as criadas pelo usuário e, por último, Outros. `saved` vem de state.categories.
+  function resolveCategories(saved) {
+    const byId = new Map((saved || []).map((c) => [c.id, c]));
+    const builtins = CATEGORIES.map((c) => {
+      const o = byId.get(c.id) || {};
+      return {
+        ...c,
+        label: (o.label || '').trim() || c.label,
+        icon: (o.icon || '').trim() || c.icon,
+        hidden: c.id !== 'outros' && !!o.hidden,
+        builtin: true,
+      };
+    });
+    const custom = (saved || []).filter((c) => c.custom && !CATEGORIES.some((b) => b.id === c.id))
+      .map((c) => ({ id: c.id, label: c.label, icon: c.icon || '🏷️', slot: c.slot || 0, hidden: false, custom: true }));
+    const outros = builtins.pop();
+    return [...builtins, ...custom, outros];
+  }
 
-  // Categorias que deixaram de existir e para onde as despesas antigas vão.
+  function nextCustomSlot(list) {
+    const used = new Set(list.map((c) => c.slot));
+    return CUSTOM_SLOTS.find((s) => !used.has(s)) || 0;
+  }
+
+  // Ordem das categorias nos gráficos (pela cor) e para onde cada uma vai no gráfico.
+  const chartOrder = (list) => list.filter((c) => c.slot).sort((a, b) => a.slot - b.slot).map((c) => c.id);
+  function chartCategory(list, id) {
+    const c = list.find((x) => x.id === id);
+    return c && c.slot ? id : 'outros';
+  }
+
+  // Categorias e formas de pagamento que deixaram de existir, e para onde vão.
   const RETIRED_CATEGORIES = { combustivel: 'outros' };
+  const RETIRED_PAYMENTS = { nubank: 'credito', unlimited: 'credito' };
 
   const PAYMENTS = [
-    { id: 'nubank', label: 'Nubank', color: '#8a05be' },
-    { id: 'unlimited', label: 'Unlimited', color: '#0ea5e9' },
+    { id: 'credito', label: 'Cartão de crédito', color: '#8a05be' },
     { id: 'ticket', label: 'Ticket', color: '#e11d48' },
     { id: 'pix', label: 'Pix/dinheiro', color: '#10b981' },
   ];
 
   // Formas de pagamento de versões anteriores do app, só para exibição.
-  const LEGACY_PAYMENTS = { pessoal: 'Pessoal', corporativo: 'Corporativo', outro: 'Outro' };
+  const LEGACY_PAYMENTS = { pessoal: 'Pessoal', corporativo: 'Corporativo', outro: 'Outro', nubank: 'Cartão de crédito', unlimited: 'Cartão de crédito' };
+
+  // Atualiza uma despesa antiga para as categorias/formas atuais. Retorna true se mudou.
+  function migrateExpense(e) {
+    let changed = false;
+    if (RETIRED_CATEGORIES[e.category]) { e.category = RETIRED_CATEGORIES[e.category]; changed = true; }
+    if (RETIRED_PAYMENTS[e.payment]) { e.payment = RETIRED_PAYMENTS[e.payment]; changed = true; }
+    return changed;
+  }
 
   const CITIES = ['Rio de Janeiro', 'São Paulo'];
 
@@ -52,7 +94,7 @@
   const AIRLINES = ['LATAM', 'GOL', 'Azul'];
 
   // Formas de pagamento que aceitam parcelamento.
-  const INSTALLMENT_PAYMENTS = ['nubank', 'unlimited'];
+  const INSTALLMENT_PAYMENTS = ['credito'];
   const MAX_INSTALLMENTS = 12;
 
   function installmentsOf(e) {
@@ -170,7 +212,7 @@
 
   // Com `startIso`, conta só a parte de cada despesa que cai naquela semana.
   function summarize(expenses, budgetCents, startIso = null) {
-    const byCategory = Object.fromEntries(CATEGORIES.map((c) => [c.id, 0]));
+    const byCategory = {};
     const byPayment = {};
     const byDay = {};
     let total = 0;
@@ -208,11 +250,11 @@
   // CSV com ';' e vírgula decimal, que abre direto no Excel em português.
   // Com `startIso`, "Valor" é a parte da semana e "Valor total" o valor cheio.
   // "Data" é o check-in na hospedagem e a ida na passagem.
-  function toCSV(expenses, startIso = null) {
+  function toCSV(expenses, startIso = null, categories = CATEGORIES) {
     const header = ['Data', 'Check-out/Volta', 'Noites', 'Categoria', 'Descrição', 'Cidade', 'Pagamento', 'Parcelas',
       'Reembolsável', 'Data da compra', 'Companhia aérea', 'Localizador', 'Valor', 'Valor total'];
     const rows = expenses.map((e) => {
-      const cat = CATEGORIES.find((c) => c.id === e.category);
+      const cat = categories.find((c) => c.id === e.category);
       const share = weekShare(e, startIso);
       const isFlight = e.category === 'passagem';
       const end = nights(e) ? e.checkout : isFlight && e.returnDate ? e.returnDate : '';
@@ -400,8 +442,31 @@
     return out;
   }
 
+  // Preferências que vão para a nuvem, cada uma com seu carimbo de tempo.
+  const SYNCED_SETTINGS = { budget: 'budgetUpdatedAt', categories: 'categoriesUpdatedAt' };
+
+  // Campos remotos mais novos que os locais: { campo: valor, campoUpdatedAt: t } ou null.
+  function settingsFromRemote(state, remote) {
+    if (!remote) return null;
+    const patch = {};
+    for (const [field, at] of Object.entries(SYNCED_SETTINGS)) {
+      if ((remote[at] || 0) > (state[at] || 0)) { patch[field] = remote[field]; patch[at] = remote[at]; }
+    }
+    return Object.keys(patch).length ? patch : null;
+  }
+
+  // Campos locais mais novos que os remotos, para enviar (gravação com merge).
+  function settingsToUpload(state, remote) {
+    const patch = {};
+    for (const [field, at] of Object.entries(SYNCED_SETTINGS)) {
+      if ((state[at] || 0) > ((remote && remote[at]) || 0)) { patch[field] = state[field] ?? null; patch[at] = state[at]; }
+    }
+    return Object.keys(patch).length ? patch : null;
+  }
+
   const api = {
-    CATEGORIES, CHART_ORDER, RETIRED_CATEGORIES, PAYMENTS, cityFromCoords, analytics, budgetReport, yearsWithData, monthRange, CITIES, AIRLINES, INSTALLMENT_PAYMENTS, MAX_INSTALLMENTS, installmentsOf, hasReturnLeg, paymentLabel, parseDate, toISODate, addDays, weekStart, weekDays,
+    CATEGORIES, resolveCategories, nextCustomSlot, chartOrder, chartCategory, RETIRED_CATEGORIES, RETIRED_PAYMENTS,
+    migrateExpense, settingsFromRemote, settingsToUpload, PAYMENTS, cityFromCoords, analytics, budgetReport, yearsWithData, monthRange, CITIES, AIRLINES, INSTALLMENT_PAYMENTS, MAX_INSTALLMENTS, installmentsOf, hasReturnLeg, paymentLabel, parseDate, toISODate, addDays, weekStart, weekDays,
     nights, allocate, weekShare, mergeExpenses, syncMerge, pendingUploads, expensesInWeek, parseAmount, formatMoney, summarize, toCSV,
   };
 

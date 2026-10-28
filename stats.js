@@ -1,11 +1,24 @@
 // Aba "Análises": indicadores, gasto por mês (colunas empilhadas por categoria),
 // médias por categoria e tabela por ano. Lê as despesas salvas pelo app.js.
 (function () {
-  const { CATEGORIES, CHART_ORDER, analytics, budgetReport, yearsWithData, formatMoney, toISODate } = Calc;
+  const { analytics, budgetReport, yearsWithData, formatMoney, toISODate, chartOrder, chartCategory } = Calc;
   const $ = (sel) => document.querySelector(sel);
   const STORAGE_KEY = 'semanasp:v1';
-  const catLabel = (id) => (CATEGORIES.find((c) => c.id === id) || { label: id }).label;
-  const color = (id) => `var(--cat-${id})`;
+  // Categorias vêm do app.js (personalizáveis). No gráfico, as que não têm cor
+  // própria (da 9ª em diante) são somadas em Outros.
+  const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const catLabel = (id) => esc(window.Categories.get(id).label);
+  const color = (id) => window.Categories.color(id);
+  const order = () => chartOrder(window.Categories.list());
+  function fold(byCategory) {
+    const list = window.Categories.list();
+    const out = {};
+    for (const [id, v] of Object.entries(byCategory)) {
+      const k = chartCategory(list, id);
+      out[k] = (out[k] || 0) + v;
+    }
+    return out;
+  }
   let selectedYear = null; // null = todo o histórico
   let lastResult = null;
 
@@ -58,6 +71,7 @@
       `<button type="button" data-year="${y ?? ''}" aria-pressed="${y === selectedYear}">${y ?? 'Tudo'}</button>`).join('');
 
     const r = analytics(all, selectedYear, today);
+    for (const m of r.months) m.chart = fold(m.byCategory);
     lastResult = r;
     $('#kpi-total').textContent = money0(r.total);
     $('#kpi-total-sub').textContent = r.trips ? `em ${r.trips} ${r.trips === 1 ? 'viagem' : 'viagens'}` : 'nenhuma viagem ainda';
@@ -115,7 +129,7 @@
   }
 
   function usedCategories(r) {
-    return CHART_ORDER.filter((c) => r.months.some((m) => m.byCategory[c] > 0));
+    return order().filter((c) => r.months.some((m) => m.chart[c] > 0));
   }
 
   function renderLegend(r) {
@@ -157,9 +171,9 @@
       const cx = left + band * i + band / 2, x = cx - barW / 2;
       let col = '';
       let base = y(0);
-      const segs = CHART_ORDER.filter((c) => m.byCategory[c] > 0);
+      const segs = order().filter((c) => m.chart[c] > 0);
       segs.forEach((c, j) => {
-        const h = (m.byCategory[c] / max) * plotH;
+        const h = (m.chart[c] / max) * plotH;
         const isTop = j === segs.length - 1;
         const hh = Math.max(0.5, isTop ? h : h - GAP); // folga de 2px entre segmentos
         const yTop = base - h;
@@ -198,7 +212,8 @@
     const m = lastResult && lastResult.months[i];
     el.querySelectorAll('.col').forEach((g) => g.classList.toggle('active', Number(g.dataset.i) === i));
     if (!m) { tip.hidden = true; return; }
-    const rows = CHART_ORDER.filter((c) => m.byCategory[c] > 0).reverse().map((c) =>
+    // No detalhe, cada categoria aparece com o próprio nome (sem agrupar), da maior para a menor.
+    const rows = Object.keys(m.byCategory).filter((c) => m.byCategory[c] > 0).sort((a, b) => m.byCategory[b] - m.byCategory[a]).map((c) =>
       `<div class="row"><span><i style="background:${color(c)}"></i>${catLabel(c)}</span>${fm(m.byCategory[c])}</div>`).join('');
     const status = m.scheduled && m.done ? ` · ${fm(m.scheduled)} agendado` : m.scheduled ? ' · agendado' : '';
     tip.innerHTML = `<b>${monthName(m.key, 'long')} ${m.key.slice(0, 4)}${status}</b>${rows || '<span class="muted">Sem gastos</span>'}`
@@ -237,14 +252,14 @@
   }
 
   function renderCategories(r) {
-    const cats = CHART_ORDER.filter((c) => r.byCategory[c] > 0);
+    const cats = Object.keys(r.byCategory).filter((c) => r.byCategory[c] > 0).sort((a, b) => r.byCategory[b] - r.byCategory[a]);
     const max = Math.max(1, ...cats.map((c) => r.byCategory[c]));
     $('#stats-categories').innerHTML = cats.map((c) => {
       const share = (r.byCategory[c] / r.total) * 100;
       const pct = share > 0 && share < 1 ? '<1' : Math.round(share);
       const extra = c === 'hospedagem' && r.avgPerNight ? ` · ${fm(r.avgPerNight)} por noite` : '';
       return `<li>
-        <div class="label"><span>${(CATEGORIES.find((x) => x.id === c) || {}).icon || ''} ${catLabel(c)}</span><b>${fm(r.byCategory[c])} <span class="muted">${pct}%</span></b></div>
+        <div class="label"><span>${esc(window.Categories.get(c).icon)} ${catLabel(c)}</span><b>${fm(r.byCategory[c])} <span class="muted">${pct}%</span></b></div>
         <div class="track"><div class="fill" style="width:${(r.byCategory[c] / max) * 100}%;background:${color(c)}"></div></div>
         <div class="sub">${fm(r.avgPerTripByCategory[c])} por viagem${extra}</div>
       </li>`;

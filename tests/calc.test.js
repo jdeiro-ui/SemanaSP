@@ -26,9 +26,9 @@ test('parseAmount entende formatos brasileiros', () => {
 });
 
 const sample = [
-  { id: '1', createdAt: 1, date: '2026-10-13', category: 'hospedagem', amount: 30000, payment: 'nubank', reimbursable: true, description: 'Hotel', city: 'São Paulo' },
+  { id: '1', createdAt: 1, date: '2026-10-13', category: 'hospedagem', amount: 30000, payment: 'credito', reimbursable: true, description: 'Hotel', city: 'São Paulo' },
   { id: '2', createdAt: 2, date: '2026-10-13', category: 'alimentacao', amount: 4550, payment: 'ticket', reimbursable: false, description: 'Jantar; cliente', city: 'São Paulo' },
-  { id: '3', createdAt: 3, date: '2026-10-14', category: 'transporte', amount: 2000, payment: 'nubank', reimbursable: false, description: 'Uber', city: '' },
+  { id: '3', createdAt: 3, date: '2026-10-14', category: 'transporte', amount: 2000, payment: 'credito', reimbursable: false, description: 'Uber', city: '' },
   { id: '4', createdAt: 4, date: '2026-10-19', category: 'outros', amount: 999, payment: 'pix', reimbursable: true, description: 'Semana seguinte', city: '' },
 ];
 
@@ -42,7 +42,7 @@ test('summarize separa reembolsável e soma por forma de pagamento', () => {
   assert.equal(s.total, 36550);
   assert.equal(s.reimbursable, 30000);
   assert.equal(s.notReimbursable, 6550);
-  assert.deepEqual(s.byPayment, { nubank: 32000, ticket: 4550 });
+  assert.deepEqual(s.byPayment, { credito: 32000, ticket: 4550 });
   assert.equal(s.byCategory.hospedagem, 30000);
   assert.equal(s.byDay['2026-10-13'], 34550);
   assert.equal(s.remaining, 13450);
@@ -63,7 +63,7 @@ test('paymentLabel cobre formas antigas', () => {
 
 // Hotel de sex 16/10 a seg 19/10: 3 noites (16, 17, 18) — atravessa o fim da semana de 12/10.
 const stay = { id: 'h', createdAt: 9, date: '2026-10-16', checkout: '2026-10-19', category: 'hospedagem',
-  amount: 100000, payment: 'nubank', reimbursable: true, description: 'Hotel', city: 'Rio de Janeiro' };
+  amount: 100000, payment: 'credito', reimbursable: true, description: 'Hotel', city: 'Rio de Janeiro' };
 
 test('allocate divide a hospedagem por noite, sobra de centavos nas primeiras', () => {
   assert.equal(Calc.nights(stay), 3);
@@ -95,12 +95,12 @@ test('hospedagem que atravessa semanas entra em cada semana só com suas noites'
 test('toCSV de hospedagem traz check-out, noites da semana e valor parcial', () => {
   const late = { ...stay, date: '2026-10-11', checkout: '2026-10-13', amount: 20000, description: 'Hotel SP', city: 'São Paulo' };
   const row = Calc.toCSV([late], '2026-10-12').replace('\ufeff', '').split('\r\n')[1];
-  assert.equal(row, '11/10/2026;13/10/2026;1 de 2;Hospedagem;Hotel SP;São Paulo;Nubank;;Sim;;;;100,00;200,00');
+  assert.equal(row, '11/10/2026;13/10/2026;1 de 2;Hospedagem;Hotel SP;São Paulo;Cartão de crédito;;Sim;;;;100,00;200,00');
 });
 
 // Passagem comprada em 01/09 para ida dom 18/10 e volta sex 23/10 (trechos em semanas diferentes).
 const flight = { id: 'f', createdAt: 10, category: 'passagem', date: '2026-10-18', returnDate: '2026-10-23',
-  purchaseDate: '2026-09-01', airline: 'LATAM', locator: 'XPTO12', amount: 120001, payment: 'nubank',
+  purchaseDate: '2026-09-01', airline: 'LATAM', locator: 'XPTO12', amount: 120001, payment: 'credito',
   installments: 3, reimbursable: true, description: '', city: 'São Paulo' };
 
 test('passagem conta na semana da viagem, metade na ida e metade na volta', () => {
@@ -115,16 +115,16 @@ test('passagem conta na semana da viagem, metade na ida e metade na volta', () =
   assert.equal(Calc.nights({ ...flight, checkout: '2026-10-20' }), 0);
 });
 
-test('parcelas só valem para Nubank e Unlimited', () => {
+test('parcelas só valem para cartão de crédito', () => {
   assert.equal(Calc.installmentsOf(flight), 3);
-  assert.equal(Calc.installmentsOf({ ...flight, payment: 'unlimited' }), 3);
+  assert.equal(Calc.installmentsOf({ ...flight, payment: 'ticket' }), 1);
   assert.equal(Calc.installmentsOf({ ...flight, payment: 'pix' }), 1);
   assert.equal(Calc.installmentsOf({ ...flight, installments: null }), 1);
 });
 
 test('toCSV de passagem traz volta, compra, companhia, localizador e parcelas', () => {
   const row = Calc.toCSV([flight], '2026-10-19').replace('\ufeff', '').split('\r\n')[1];
-  assert.equal(row, '18/10/2026;23/10/2026;;Passagem;;São Paulo;Nubank;3x;Sim;01/09/2026;LATAM;XPTO12;600,00;1200,01');
+  assert.equal(row, '18/10/2026;23/10/2026;;Passagem;;São Paulo;Cartão de crédito;3x;Sim;01/09/2026;LATAM;XPTO12;600,00;1200,01');
 });
 
 test('mergeExpenses acrescenta sem duplicar e descarta itens inválidos', () => {
@@ -238,4 +238,43 @@ test('budgetReport compara cada semana de viagem encerrada com o orçamento', ()
   assert.deepEqual(r.months.map((m) => [m.key, m.trips, m.spent, m.budget, m.diff, m.over]),
     [['2026-09', 2, 200000, 200000, 0, 1], ['2026-10', 1, 90000, 100000, -10000, 0]]);
   assert.equal(Calc.budgetReport(ex, null, 100000, '2026-10-21').trips, 4);
+});
+
+test('migrateExpense converte Nubank/Unlimited em cartão de crédito e Combustível em Outros', () => {
+  const e = { payment: 'unlimited', category: 'combustivel', installments: 3 };
+  assert.equal(Calc.migrateExpense(e), true);
+  assert.deepEqual(e, { payment: 'credito', category: 'outros', installments: 3 });
+  assert.equal(Calc.migrateExpense(e), false);
+  assert.equal(Calc.paymentLabel('nubank'), 'Cartão de crédito');
+});
+
+test('resolveCategories aplica nomes, ocultação e categorias criadas; Outros fica por último', () => {
+  const list = Calc.resolveCategories([
+    { id: 'alimentacao', label: 'Comida', icon: '🍔' },
+    { id: 'transporte', hidden: true },
+    { id: 'outros', hidden: true, label: '' },               // Outros não pode ser ocultada
+    { id: 'lavanderia', label: 'Lavanderia', icon: '🧺', custom: true, slot: 6 },
+    { id: 'presentes', label: 'Presentes', custom: true, slot: 0 },
+  ]);
+  assert.deepEqual(list.map((c) => c.id), ['hospedagem', 'alimentacao', 'transporte', 'passagem', 'lavanderia', 'presentes', 'outros']);
+  assert.deepEqual([list[1].label, list[1].icon], ['Comida', '🍔']);
+  assert.equal(list[2].hidden, true);
+  assert.equal(list[6].hidden, false);
+  assert.equal(list[6].label, 'Outros');
+  assert.equal(list[5].icon, '🏷️');
+  assert.deepEqual(Calc.chartOrder(list), ['hospedagem', 'passagem', 'alimentacao', 'transporte', 'outros', 'lavanderia']);
+  assert.equal(Calc.chartCategory(list, 'presentes'), 'outros');   // 9ª+ cor: agrupa em Outros
+  assert.equal(Calc.chartCategory(list, 'lavanderia'), 'lavanderia');
+  assert.equal(Calc.chartCategory(list, 'sumiu'), 'outros');
+  assert.equal(Calc.nextCustomSlot(list), 7);
+  assert.deepEqual(Calc.resolveCategories(undefined).map((c) => c.id), Calc.CATEGORIES.map((c) => c.id));
+});
+
+test('settingsFromRemote/settingsToUpload sincronizam cada preferência pelo carimbo', () => {
+  const local = { budget: 100, budgetUpdatedAt: 10, categories: [{ id: 'x' }], categoriesUpdatedAt: 50 };
+  const remote = { budget: 200, budgetUpdatedAt: 20, categories: [], categoriesUpdatedAt: 40 };
+  assert.deepEqual(Calc.settingsFromRemote(local, remote), { budget: 200, budgetUpdatedAt: 20 });
+  assert.deepEqual(Calc.settingsToUpload(local, remote), { categories: [{ id: 'x' }], categoriesUpdatedAt: 50 });
+  assert.equal(Calc.settingsFromRemote(local, null), null);
+  assert.deepEqual(Calc.settingsToUpload({ budget: 0 }, null), null);
 });
