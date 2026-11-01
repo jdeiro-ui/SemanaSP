@@ -1,13 +1,22 @@
 :root {
-  --bg: #f4f5fb;
+  /* Tema claro: branco e vermelho (#d71920). Contraste ≥ 4,5:1 para textos. */
+  --bg: #f6f4f4;
   --card: #ffffff;
-  --text: #1e1f2b;
-  --muted: #6b7080;
-  --line: #e4e6ef;
-  --primary: #4f46e5;
-  --danger: #dc2626;
-  --ok: #059669;
-  --radius: 14px;
+  --surface-2: #f1eded;
+  --text: #151316;
+  --muted: #6b6466;
+  --line: #e8e3e4;
+  --primary: #d71920;        /* preenchimentos (botões, barras) */
+  --primary-text: #d71920;   /* texto e links em vermelho */
+  --on-primary: #ffffff;
+  --primary-soft: rgb(215 25 32 / .09);
+  --danger: #c4161c;
+  --ok: #0f8a4a;
+  --radius: 18px;
+  --shadow: 0 1px 2px rgb(40 10 12 / .05), 0 8px 24px rgb(40 10 12 / .05);
+  --topbar-bg: rgb(255 255 255 / .82);
+  --hero-bg: linear-gradient(135deg, #ffffff 0%, #fff1f1 100%);
+  --tab-active: #ffffff;
   /* Cores das categorias (slot em calc.js): paleta de 8 validada para daltonismo.
      1 Hospedagem · 2 Passagem · 3 Alimentação · 4 Transporte · 5 Outros · 6-8 criadas */
   --slot-1: #2a78d6;
@@ -18,19 +27,29 @@
   --slot-6: #008300;
   --slot-7: #6250d6;
   --slot-8: #e34948;
-  --grid: #e8e8ef;
-  --axis: #c3c2cc;
+  --grid: #ece8e8;
+  --axis: #cfc8c9;
   color-scheme: light dark;
 }
 
+/* Tema escuro: preto e vermelho, ativado pela configuração do sistema. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #12131a;
-    --card: #1c1d27;
-    --text: #e8e9f1;
-    --muted: #9a9fb2;
-    --line: #2c2e3b;
-    --primary: #818cf8;
+    --bg: #0b0b0d;
+    --card: #16151a;
+    --surface-2: #1f1d23;
+    --text: #f4f1f1;
+    --muted: #a39c9f;
+    --line: #29262c;
+    --primary: #e0242c;
+    --primary-text: #ff5a61;
+    --primary-soft: rgb(255 70 80 / .13);
+    --danger: #ff5a61;
+    --ok: #2fbf6b;
+    --shadow: none;
+    --topbar-bg: rgb(11 11 13 / .82);
+    --hero-bg: linear-gradient(135deg, #2b0d11 0%, #16151a 72%);
+    --tab-active: #2a272f;
     --slot-1: #3987e5;
     --slot-2: #d95926;
     --slot-3: #199e70;
@@ -39,8 +58,8 @@
     --slot-6: #008300;
     --slot-7: #9085e9;
     --slot-8: #e66767;
-    --grid: #2a2b36;
-    --axis: #3a3c4a;
+    --grid: #252329;
+    --axis: #3a363e;
   }
 }
 
@@ -97,7 +116,7 @@ button, .button {
 button.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
 button.danger { color: var(--danger); border-color: var(--danger); }
 .icon-btn { border: none; background: transparent; font-size: 1.5rem; padding: 4px 10px; color: inherit; }
-.link-btn { border: none; background: none; color: var(--primary); padding: 2px 0; font-size: .85rem; }
+.link-btn { border: none; background: none; color: var(--primary-text); padding: 2px 0; font-size: .85rem; }
 
 .week-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .week-label { text-align: center; display: flex; flex-direction: column; }
@@ -123,7 +142,7 @@ button.danger { color: var(--danger); border-color: var(--danger); }
 .day { display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; font-size: .7rem; }
 .day .col { width: 70%; background: var(--primary); border-radius: 4px 4px 0 0; min-height: 2px; }
 .day .val { color: var(--muted); margin-bottom: 2px; white-space: nowrap; }
-.day.today .name { font-weight: 700; color: var(--primary); }
+.day.today .name { font-weight: 700; color: var(--primary-text); }
 
 .expenses { list-style: none; margin: 0; padding: 0; }
 .expenses li {
@@ -180,9 +199,9 @@ dialog textarea { resize: vertical; }
 .dates { display: flex; gap: 8px; }
 .dates label { flex: 1; min-width: 0; }
 .dates input { width: 100%; }
-.stay-hint { font-size: .85rem; margin: -6px 0 12px; color: var(--primary); }
+.stay-hint { font-size: .85rem; margin: -6px 0 12px; color: var(--primary-text); }
 .stay-hint.error { color: var(--danger); }
-.expenses .part { font-size: .75rem; color: var(--primary); margin-top: 2px; }
+.expenses .part { font-size: .75rem; color: var(--primary-text); margin-top: 2px; }
 .expenses .amt { flex-shrink: 0; white-space: nowrap; }
 .expenses .tags { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; margin-top: 2px; }
 .dates select { width: 100%; }
@@ -223,7 +242,7 @@ dialog label small { font-size: .75rem; }
 .tooltip i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
 .tooltip .tot { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; font-weight: 600; }
 .table-view { margin-top: 10px; font-size: .85rem; }
-.table-view summary { color: var(--primary); cursor: pointer; }
+.table-view summary { color: var(--primary-text); cursor: pointer; }
 table.data { width: 100%; border-collapse: collapse; font-size: .8rem; margin-top: 6px; }
 table.data th, table.data td { padding: 5px 4px; border-bottom: 1px solid var(--line); text-align: right; font-variant-numeric: tabular-nums; }
 table.data th:first-child, table.data td:first-child { text-align: left; }
@@ -283,3 +302,65 @@ dialog .imp-cols select, dialog .vmap select { width: 100%; font-size: .85rem; p
 dialog label.vmap { display: grid; grid-template-columns: 1fr 1.2fr; align-items: center; gap: 8px; color: var(--text); margin-bottom: 6px; }
 .vmap span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .85rem; }
 #imp-preview table.data td:nth-child(3) { text-align: left; }
+
+/* ================= Visual QuantoGastei? (vermelho e preto) ================= */
+body { font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+h2 { font-size: 1rem; font-weight: 700; letter-spacing: -.01em; }
+
+.topbar {
+  background: var(--topbar-bg); color: var(--text);
+  -webkit-backdrop-filter: saturate(160%) blur(14px); backdrop-filter: saturate(160%) blur(14px);
+  border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand img { width: 32px; height: 32px; border-radius: 9px; display: block; }
+.topbar h1 { font-size: 1.2rem; font-weight: 800; letter-spacing: -.03em; }
+.topbar h1 em { font-style: normal; color: var(--primary-text); }
+.topbar .icon-btn { width: 40px; height: 40px; padding: 0; display: inline-grid; place-items: center; border-radius: 12px; color: var(--text); }
+.topbar .icon-btn:hover { background: var(--surface-2); }
+.topbar .icon-btn svg { width: 22px; height: 22px; }
+#btn-privacy[aria-pressed=true] { background: var(--primary-soft); color: var(--primary-text); border-radius: 12px; }
+#btn-privacy .eye-off, #btn-privacy[aria-pressed=true] .eye { display: none; }
+#btn-privacy[aria-pressed=true] .eye-off { display: block; }
+
+.card, .kpi { border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: var(--radius); }
+.card { padding: 18px; }
+.summary { background: var(--hero-bg); border-color: color-mix(in srgb, var(--primary) 22%, var(--line)); }
+.big { font-size: 2.4rem; font-weight: 800; letter-spacing: -.035em; line-height: 1.1; }
+
+button, .button { border-radius: 12px; border-color: transparent; background: var(--surface-2); font-weight: 600; }
+button.primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+button.danger { background: transparent; }
+button:focus-visible, .icon-btn:focus-visible, .card-head:focus-visible { outline: 2px solid var(--primary-text); outline-offset: 2px; }
+.week-nav .icon-btn { width: 40px; height: 40px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); color: var(--text); font-size: 1.3rem; }
+
+.tabs { background: var(--surface-2); border-radius: 14px; padding: 4px; }
+.tabs button { border-radius: 11px; background: transparent; }
+.tabs button[aria-selected=true] { background: var(--tab-active); color: var(--text); box-shadow: 0 1px 3px rgb(0 0 0 / .12); }
+
+.chips button { background: var(--card); border: 1px solid var(--line); font-weight: 500; }
+.chips button[aria-pressed=true] { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+
+.fab {
+  background: var(--primary); color: var(--on-primary); border-radius: 20px;
+  display: grid; place-items: center;
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--primary) 45%, transparent), 0 2px 6px rgb(0 0 0 / .2);
+}
+.fab svg { width: 28px; height: 28px; }
+
+.tag { background: var(--surface-2); }
+.bars .track, .budget .track { background: var(--surface-2); height: 8px; }
+.day .col { border-radius: 6px 6px 2px 2px; }
+
+dialog { border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 24px 60px rgb(0 0 0 / .35); }
+dialog::backdrop { background: rgb(8 4 5 / .55); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+dialog input:not([type=checkbox]), dialog select, dialog textarea { background: var(--surface-2); border: 1px solid transparent; border-radius: 12px; }
+dialog input:focus, dialog select:focus, dialog textarea:focus { outline: none; border-color: var(--primary-text); box-shadow: 0 0 0 3px var(--primary-soft); }
+input[type=checkbox] { accent-color: var(--primary); width: 18px; height: 18px; }
+.note { background: var(--primary-soft); }
+.privacy-banner { background: var(--primary-soft); color: var(--primary-text); font-weight: 600; }
+.spinner { border-top-color: var(--primary); }
+.stay-hint { color: var(--muted); }
+.stay-hint.error { color: var(--danger); }
+.expenses .part { color: var(--muted); }
+.chart text, .chart .avg, .chart .grid, .chart .base { pointer-events: none; }

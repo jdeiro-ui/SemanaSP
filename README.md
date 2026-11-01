@@ -64,7 +64,7 @@ npm test
 | Arquivo | Conteúdo |
 | --- | --- |
 | `index.html` | Interface |
-| `styles.css` | Estilos (tema claro/escuro automático) |
+| `styles.css` | Visual vermelho e preto, com tema claro e escuro conforme o sistema |
 | `calc.js` | Regras: semanas, valores, totais, CSV |
 | `receipt.js` | Interpretação do texto lido dos prints (Uber, Keeta, SMS de cartão, Carteira do Google) |
 | `importer.js`, `import-ui.js` | Importação de planilhas (regras e tela) |

@@ -3,7 +3,7 @@
     hasReturnLeg, paymentLabel, nights, weekShare, toISODate, addDays, weekStart, weekDays, parseDate,
     expensesInWeek, parseAmount, formatMoney, summarize, toCSV } = Calc;
 
-  const APP_VERSION = '2026.10.28-3';
+  const APP_VERSION = '2026.11.01-1';
   const STORAGE_KEY = 'semanasp:v1';
   const $ = (sel) => document.querySelector(sel);
 
@@ -744,7 +744,6 @@
   function applyPrivacy() {
     const on = window.Privacy.on;
     const btn = $('#btn-privacy');
-    btn.textContent = on ? '🙈' : '👁️';
     btn.setAttribute('aria-pressed', String(on));
     btn.setAttribute('aria-label', on ? 'Mostrar valores' : 'Ocultar valores');
     btn.title = btn.getAttribute('aria-label');
